@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Quadro de Tarefas — Central de Tarefas</title>
+  <%- include('System/headIncludes.ejs') %>
+</head>
+<body>
+<div class="layout-container">
+  <%- include('partials/sidebar.ejs') %>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="page-info">
+          <h1><i class="bi bi-kanban" style="color:var(--primary);"></i> Quadro de Tarefas</h1>
+          <p>Gerencie suas tarefas no estilo Trello</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-primary btn-sm" id="btnNovaTarefa">
+          <i class="bi bi-plus-lg"></i> Nova Tarefa
+        </button>
+        <%- include('partials/userMenu.ejs') %>
+      </div>
+    </div>
+
+    <div class="content" style="padding:20px 24px;">
+      <div class="kanban-board" id="kanbanBoard">
+
+        <%
+          const cols = [
+            { key: 'A_FAZER',      label: 'A Fazer',      dotClass: 'col-dot-a_fazer',      colClass: 'col-a_fazer' },
+            { key: 'EM_ANDAMENTO', label: 'Em Andamento', dotClass: 'col-dot-em_andamento', colClass: 'col-em_andamento' },
+            { key: 'EM_REVISAO',   label: 'Em Revisão',   dotClass: 'col-dot-em_revisao',   colClass: 'col-em_revisao' },
+            { key: 'CONCLUIDO',    label: 'Concluído',    dotClass: 'col-dot-concluido',    colClass: 'col-concluido' },
+          ];
+        %>
+
+        <% cols.forEach(function(col) { %>
+        <div class="kanban-column">
+          <div class="kanban-column-header">
+            <div class="column-header-left">
+              <span class="column-dot <%= col.dotClass %>"></span>
+              <span class="column-title"><%= col.label %></span>
+              <span class="column-count" id="count-<%= col.key %>"><%= kanban[col.key] ? kanban[col.key].length : 0 %></span>
+            </div>
+            <button class="btn-add-card" title="Adicionar tarefa" data-status="<%= col.key %>">+</button>
+          </div>
+
+          <div class="kanban-cards" id="cards-<%= col.key %>" data-status="<%= col.key %>">
+            <% if (kanban[col.key]) { kanban[col.key].forEach(function(card) { %>
+              <%
+                var isOverdue = card.data_vencimento && new Date(card.data_vencimento) < new Date();
+                var prio = (card.prioridade || 'MEDIA').toLowerCase();
+              %>
+              <div class="task-card priority-<%= prio %>" data-id="<%= card.id %>" data-status="<%= card.status %>">
+                <div class="card-priority-bar"></div>
+
+                <% /* categoria removida conforme solicitado */ %>
+
+                <p class="card-title"><%= card.titulo %></p>
+
+                <% if (card.descricao) { %>
+                  <p class="card-desc"><%= card.descricao.length > 90 ? card.descricao.substring(0,90) + '…' : card.descricao %></p>
+                <% } %>
+
+                <% if (card.checklist_total > 0) { %>
+                  <div>
+                    <div class="checklist-bar">
+                      <div class="checklist-progress" style="width:<%= Math.round(card.checklist_done/card.checklist_total*100) %>%"></div>
+                    </div>
+                    <small class="text-muted" style="font-size:10px;"><%= card.checklist_done %>/<%= card.checklist_total %> itens</small>
+                  </div>
+                <% } %>
+
+                <div class="card-footer-row">
+                  <% if (card.data_vencimento) { %>
+                    <span class="due-date <%= isOverdue ? 'overdue' : '' %>">
+                      <i class="bi bi-calendar3"></i>
+                      <%= new Date(card.data_vencimento).toLocaleDateString('pt-BR') %>
+                    </span>
+                  <% } %>
+                  <span class="priority-badge <%= prio %>" style="margin-left:auto;margin-right:4px;">
+                    <%= card.prioridade %>
+                  </span>
+                  <button class="btn-card-edit" data-id="<%= card.id %>" title="Editar">
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                </div>
+              </div>
+            <% }); } %>
+          </div>
+          <div class="kanban-add-zone" id="addzone-<%= col.key %>" style="display:none;">
+            <textarea placeholder="Título da tarefa..." rows="2" id="addtxt-<%= col.key %>"></textarea>
+            <div class="kanban-add-actions">
+              <button class="btn btn-primary btn-sm" onclick="saveInlineCard('<%= col.key %>')">Adicionar</button>
+              <button class="btn btn-secondary btn-sm" onclick="cancelInlineCard('<%= col.key %>')">Cancelar</button>
+            </div>
+          </div>
+        </div>
+        <% }); %>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="modalTarefa" tabindex="-1" aria-labelledby="modalTarefaLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--primary);color:white;">
+        <h5 class="modal-title" id="modalTarefaLabel"><i class="bi bi-kanban"></i> <span id="modalTarefaTitulo">Nova Tarefa</span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="tarefaId" value="">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">Título *</label>
+            <input type="text" class="form-control" id="fTitulo" placeholder="Descreva a tarefa..." required>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Descrição</label>
+            <textarea class="form-control" id="fDescricao" rows="3" placeholder="Detalhes adicionais..."></textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Status</label>
+            <select class="form-select" id="fStatus">
+              <option value="A_FAZER">A Fazer</option>
+              <option value="EM_ANDAMENTO">Em Andamento</option>
+              <option value="EM_REVISAO">Em Revisão</option>
+              <option value="CONCLUIDO">Concluído</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Prioridade</label>
+            <select class="form-select" id="fPrioridade">
+              <option value="ALTA">Alta</option>
+              <option value="MEDIA" selected>Média</option>
+              <option value="BAIXA">Baixa</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Vencimento</label>
+            <input type="date" class="form-control" id="fVencimento">
+          </div>
+          <% /* Responsável e Categoria removidos do modal conforme solicitado */ %>
+          <div class="col-12" id="checklistSection" style="display:none;">
+            <label class="form-label fw-semibold">Checklist</label>
+            <div id="checklistItems" class="mb-2"></div>
+            <div class="d-flex gap-2">
+              <input type="text" class="form-control form-control-sm" id="newCheckItem" placeholder="Novo item...">
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="addCheckItem()"><i class="bi bi-plus"></i></button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger btn-sm" id="btnExcluirTarefa" style="display:none;margin-right:auto;">
+          <i class="bi bi-trash"></i> Excluir
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnSalvarTarefa">
+          <i class="bi bi-check-lg"></i> Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('System/bodyIncludes.ejs') %>
+<script>
+var columns = ['A_FAZER','EM_ANDAMENTO','EM_REVISAO','CONCLUIDO'];
+
+columns.forEach(function(status) {
+  var el = document.getElementById('cards-' + status);
+  if (!el) return;
+  Sortable.create(el, {
+    group:      'kanban',
+    animation:  150,
+    ghostClass: 'card-ghost',
+    chosenClass:'card-chosen',
+    dragClass:  'card-drag',
+    onEnd: function(evt) {
+      var cards = [];
+      columns.forEach(function(s) {
+        var col = document.getElementById('cards-' + s);
+        if (!col) return;
+        Array.from(col.children).forEach(function(el, i) {
+          if (el.dataset && el.dataset.id) {
+            cards.push({ id: parseInt(el.dataset.id), posicao: i, status: s });
+          }
+        });
+      });
+      updateCounts();
+      apiFetch('/api/tarefas/reorder', { method: 'POST', body: { cards: cards } })
+        .then(function(r) { if (!r.success) showToast('Erro ao salvar posição', 'error'); })
+        .catch(function() { showToast('Erro de conexão', 'error'); });
+    }
+  });
+});
+
+function updateCounts() {
+  columns.forEach(function(s) {
+    var col = document.getElementById('cards-' + s);
+    var badge = document.getElementById('count-' + s);
+    if (col && badge) badge.textContent = col.children.length;
+  });
+}
+
+document.querySelectorAll('.btn-add-card').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var status = btn.dataset.status;
+    document.querySelectorAll('.kanban-add-zone').forEach(function(z) { z.style.display='none'; });
+    var zone = document.getElementById('addzone-' + status);
+    if (zone) { zone.style.display='block'; document.getElementById('addtxt-' + status).focus(); }
+  });
+});
+
+function saveInlineCard(status) {
+  var txt = (document.getElementById('addtxt-' + status) || {}).value;
+  if (!txt || !txt.trim()) return;
+  apiFetch('/api/tarefas', { method: 'POST', body: { titulo: txt.trim(), status: status } })
+    .then(function(r) {
+      if (r.success) {
+        cancelInlineCard(status);
+        showToast('Tarefa criada!', 'success');
+        setTimeout(function() { location.reload(); }, 800);
+      } else { showToast('Erro ao criar tarefa', 'error'); }
+    })
+    .catch(function() { showToast('Erro de conexão', 'error'); });
+}
+function cancelInlineCard(status) {
+  var zone = document.getElementById('addzone-' + status);
+  var txt  = document.getElementById('addtxt-' + status);
+  if (zone) zone.style.display = 'none';
+  if (txt)  txt.value = '';
+}
+
+var bsModal = new bootstrap.Modal(document.getElementById('modalTarefa'));
+document.getElementById('btnNovaTarefa').addEventListener('click', function() {
+  openModal(null);
+});
+
+document.querySelectorAll('.btn-card-edit').forEach(function(btn) {
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    openModal(parseInt(btn.dataset.id));
+  });
+});
+
+function openModal(id) {
+  clearModal();
+  if (id) {
+    document.getElementById('modalTarefaTitulo').textContent = 'Editar Tarefa';
+    document.getElementById('btnExcluirTarefa').style.display = 'inline-flex';
+    document.getElementById('checklistSection').style.display = 'block';
+    document.getElementById('tarefaId').value = id;
+    apiFetch('/api/tarefas/' + id)
+      .then(function(r) {
+        if (!r.success || !r.data) return;
+        var t = r.data;
+        document.getElementById('fTitulo').value       = t.titulo || '';
+        document.getElementById('fDescricao').value    = t.descricao || '';
+        document.getElementById('fStatus').value       = t.status || 'A_FAZER';
+        document.getElementById('fPrioridade').value   = t.prioridade || 'MEDIA';
+        document.getElementById('fVencimento').value   = t.data_vencimento ? t.data_vencimento.substring(0,10) : '';
+        var respEl = document.getElementById('fResponsavel');
+        if (respEl) respEl.value = t.responsavel_nome || '';
+        var catEl = document.getElementById('fCategoria');
+        if (catEl) catEl.value = t.id_categoria || '';
+        loadChecklist(id);
+      });
+  } else {
+    document.getElementById('modalTarefaTitulo').textContent = 'Nova Tarefa';
+    document.getElementById('btnExcluirTarefa').style.display = 'none';
+    document.getElementById('checklistSection').style.display = 'none';
+  }
+  bsModal.show();
+}
+
+function clearModal() {
+  document.getElementById('tarefaId').value   = '';
+  document.getElementById('fTitulo').value    = '';
+  document.getElementById('fDescricao').value = '';
+  document.getElementById('fStatus').value    = 'A_FAZER';
+  document.getElementById('fPrioridade').value= 'MEDIA';
+  document.getElementById('fVencimento').value= '';
+  var respEl = document.getElementById('fResponsavel'); if (respEl) respEl.value = '';
+  var catEl  = document.getElementById('fCategoria');   if (catEl)  catEl.value  = '';
+  document.getElementById('checklistItems').innerHTML = '';
+}
+
+document.getElementById('btnSalvarTarefa').addEventListener('click', function() {
+  var id     = document.getElementById('tarefaId').value;
+  var titulo = document.getElementById('fTitulo').value.trim();
+  if (!titulo) { showToast('Título é obrigatório', 'error'); return; }
+  var respEl = document.getElementById('fResponsavel');
+  var catEl  = document.getElementById('fCategoria');
+  var payload = {
+    titulo:          titulo,
+    descricao:       document.getElementById('fDescricao').value,
+    status:          document.getElementById('fStatus').value,
+    prioridade:      document.getElementById('fPrioridade').value,
+    data_vencimento: document.getElementById('fVencimento').value || null,
+    responsavel_nome: respEl ? (respEl.value || null) : null,
+    id_categoria:     catEl ? (parseInt(catEl.value) || null) : null,
+  };
+  var url    = id ? '/api/tarefas/' + id + '/update' : '/api/tarefas';
+  var method = 'POST';
+  apiFetch(url, { method: method, body: payload })
+    .then(function(r) {
+      if (r.success) {
+        bsModal.hide();
+        showToast(id ? 'Tarefa atualizada!' : 'Tarefa criada!', 'success');
+        setTimeout(function() { location.reload(); }, 700);
+      } else { showToast('Erro ao salvar tarefa', 'error'); }
+    })
+    .catch(function() { showToast('Erro de conexão', 'error'); });
+});
+
+document.getElementById('btnExcluirTarefa').addEventListener('click', function() {
+  var id = document.getElementById('tarefaId').value;
+  if (!id) return;
+  if (!confirm('Deseja excluir esta tarefa?')) return;
+  apiFetch('/api/tarefas/' + id + '/delete', { method: 'POST' })
+    .then(function(r) {
+      if (r.success) {
+        bsModal.hide();
+        showToast('Tarefa excluída!', 'success');
+        setTimeout(function() { location.reload(); }, 700);
+      } else { showToast('Erro ao excluir', 'error'); }
+    });
+});
+
+function loadChecklist(tarefaId) {
+  apiFetch('/api/tarefas/' + tarefaId + '/checklist')
+    .then(function(r) {
+      if (!r.success) return;
+      var container = document.getElementById('checklistItems');
+      container.innerHTML = '';
+      r.data.forEach(function(item) { renderCheckItem(container, item); });
+    });
+}
+
+function renderCheckItem(container, item) {
+  var div = document.createElement('div');
+  div.className = 'd-flex align-items-center gap-2 mb-1';
+  div.innerHTML = `
+    <input type="checkbox" class="form-check-input" ${item.concluido ? 'checked' : ''} onchange="toggleCheck(${item.id}, this)">
+    <span style="font-size:13px;${item.concluido ? 'text-decoration:line-through;color:var(--text-light);' : ''}">${item.descricao}</span>
+    <button type="button" class="btn-close ms-auto" style="font-size:9px;" onclick="deleteCheck(${item.id}, this.closest('div'))"></button>
+  `;
+  container.appendChild(div);
+}
+
+function addCheckItem() {
+  var input = document.getElementById('newCheckItem');
+  var desc  = input.value.trim();
+  if (!desc) return;
+  var tarefaId = document.getElementById('tarefaId').value;
+  if (!tarefaId) return;
+  apiFetch('/api/tarefas/' + tarefaId + '/checklist', { method: 'POST', body: { descricao: desc } })
+    .then(function(r) {
+      if (r.success) {
+        renderCheckItem(document.getElementById('checklistItems'), { id: r.id, descricao: desc, concluido: 0 });
+        input.value = '';
+      }
+    });
+}
+
+function toggleCheck(id, checkbox) {
+  apiFetch('/api/checklist/' + id + '/toggle', { method: 'POST' })
+    .then(function(r) {
+      var span = checkbox.nextElementSibling;
+      if (r.concluido) {
+        checkbox.checked = true;
+        span.style.textDecoration = 'line-through';
+        span.style.color = 'var(--text-light)';
+      } else {
+        checkbox.checked = false;
+        span.style.textDecoration = '';
+        span.style.color = '';
+      }
+    });
+}
+
+function deleteCheck(id, container) {
+  apiFetch('/api/checklist/' + id + '/delete', { method: 'POST' })
+    .then(function(r) { if (r.success && container) container.remove(); });
+}
+
+document.getElementById('newCheckItem').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); addCheckItem(); }
+});
+</script>
+</body>
+</html>

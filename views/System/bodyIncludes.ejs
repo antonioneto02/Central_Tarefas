@@ -1,0 +1,139 @@
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script src="/assets/app.js"></script>
+<script>
+(function(){
+  if (!$.fn || !$.fn.dataTable) return;
+  $.fn.dataTable.ext.type.detect.unshift(function (d) {
+    if (typeof d !== 'string') return null;
+    d = d.trim();
+    var re = /^\d{1,2}\/\d{1,2}\/\d{2,4}$/;
+    return re.test(d) ? 'date-eu' : null;
+  });
+
+  $.fn.dataTable.ext.type.detect.unshift(function (d) {
+    if (typeof d !== 'string') return null;
+    var s = d.trim();
+    if (s === '') return null;
+    var numLike = /(?:R\$\s*)?[\-]?\d{1,3}(?:[\.\s]\d{3})*(?:,\d+)?(?:\s*(?:kg|km))?$/i;
+    return numLike.test(s) ? 'num-br' : null;
+  });
+
+  $.fn.dataTable.ext.type.order['num-br-pre'] = function (d) {
+    if (d === null || d === undefined) return 0;
+    var s = String(d).trim();
+    if (s === '') return 0;
+    s = s.replace(/R\$\s*/g, '').replace(/\s*(?:kg|km)\s*$/i, '');
+    s = s.replace(/\./g, '').replace(/\s/g, '').replace(/,/g, '.');
+    var n = parseFloat(s.replace(/[^0-9\-\.]/g, ''));
+    return isNaN(n) ? 0 : n;
+  };
+
+  $.fn.dataTable.ext.type.order['date-eu-pre'] = function (d) {
+    if (!d || typeof d !== 'string') return 0;
+    var p = d.split('/');
+    if (p.length !== 3) return 0;
+    var dd = ('0' + parseInt(p[0],10)).slice(-2);
+    var mm = ('0' + parseInt(p[1],10)).slice(-2);
+    var yy = p[2].length === 2 ? ('20' + p[2]) : p[2];
+    return parseInt(yy + mm + dd, 10);
+  };
+
+  function applyBaseCellStyles($table) {
+    try {
+      if (!$table || !$table.length) return;
+      $table.find('td, th').css({
+        'max-width': '200px', 'white-space': 'nowrap',
+        'overflow': 'hidden', 'text-overflow': 'ellipsis',
+        'padding': '2px', 'font-size': '12px'
+      });
+    } catch(_) {}
+  }
+  $(document).on('init.dt draw.dt', function (e, settings) {
+    try { applyBaseCellStyles($(settings.nTable)); } catch(_) {}
+  });
+
+  $(document).on('init.dt', function (e, settings) {
+    try {
+      var api = new $.fn.dataTable.Api(settings);
+      var tableNode = api.table().node();
+      var $ths = $(tableNode).find('thead th');
+      var headersUpper = [];
+      $ths.each(function(){ headersUpper.push(($(this).text()||'').trim().toUpperCase()); });
+      var idPos = headersUpper.indexOf('ID');
+      if (idPos !== -1) { api.order([idPos, 'desc']).draw(); return; }
+    } catch(_) {}
+  });
+})();
+
+document.addEventListener('DOMContentLoaded', function() {
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) logoutBtn.addEventListener('click', function(e) { e.preventDefault(); showLogoutModal(); });
+});
+
+function showLogoutModal() {
+  const modal = document.createElement('div');
+  modal.id = 'logoutModal';
+  modal.className = 'modal fade show';
+  modal.style.cssText = 'display:block;background:rgba(0,0,0,0.5);position:fixed;inset:0;z-index:9998;';
+  modal.innerHTML = `
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title"><i class="fas fa-sign-out-alt"></i> Confirmar Logout</h5>
+          <button type="button" class="btn-close" id="closeLogoutModal"></button>
+        </div>
+        <div class="modal-body text-center">
+          <i class="fas fa-question-circle fa-3x text-warning mb-3"></i>
+          <p class="mb-0">Tem certeza que deseja fazer logout?</p>
+          <small class="text-muted">Você será redirecionado para a página de login.</small>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="cancelLogout"><i class="fas fa-times"></i> Cancelar</button>
+          <button type="button" class="btn btn-danger" id="confirmLogout"><i class="fas fa-sign-out-alt"></i> Fazer Logout</button>
+        </div>
+      </div>
+    </div>`;
+  document.body.appendChild(modal);
+  function closeModal() { if (modal.parentNode) modal.remove(); }
+  modal.querySelector('#closeLogoutModal').addEventListener('click', closeModal);
+  modal.querySelector('#cancelLogout').addEventListener('click', closeModal);
+  modal.addEventListener('click', function(e) { if (e.target === modal) closeModal(); });
+  document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { closeModal(); document.removeEventListener('keydown', esc); } });
+  modal.querySelector('#confirmLogout').addEventListener('click', function() {
+    fetch('/logout', { method: 'GET', credentials: 'same-origin' })
+      .then(function() { window.location.href = '/loginPage'; })
+      .catch(function() { window.location.href = '/loginPage'; });
+  });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+  const el = document.getElementById('loggedUserName');
+  if (el) {
+    const name = el.textContent.trim();
+    if (name && name !== 'Usuário') localStorage.setItem('ctUsername', name);
+    else if (!name || name === 'Usuário') {
+      const saved = localStorage.getItem('ctUsername');
+      if (saved) el.textContent = saved;
+    }
+  }
+});
+
+let _origFetch = window.fetch;
+window.fetch = function(...args) {
+  return _origFetch.apply(this, args).then(function(response) {
+    if (response.status === 401 || response.status === 403) {
+      if (response.url && !response.url.includes('/loginPage'))
+        window.location.href = '/loginPage?error=session_expired';
+    }
+    return response;
+  });
+};
+</script>
+<style>
+.btn, .btn-primary, .btn-danger, .btn-success, .btn-secondary { transition: none !important; }
+.btn:hover, .btn:focus, .btn:active { transform: none !important; box-shadow: none !important; }
+.btn-primary:hover  { background-color: #1e40af !important; border-color: #1e40af !important; color: #fff !important; }
+.btn-danger:hover   { background-color: #dc3545 !important; border-color: #dc3545 !important; color: #fff !important; }
+.btn-success:hover  { background-color: #198754 !important; border-color: #198754 !important; color: #fff !important; }
+.btn-secondary:hover{ background-color: #6c757d !important; border-color: #6c757d !important; color: #fff !important; }
+</style>

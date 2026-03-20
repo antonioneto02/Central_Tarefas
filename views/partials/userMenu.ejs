@@ -1,0 +1,43 @@
+<div class="user-badge">
+  <div class="user-avatar dropdown" style="position:relative;">
+    <a href="#" class="user-avatar-link" id="userDropdown" role="button">
+      <div id="userInitials" class="user-initials"><%= (user && user.nome ? user.nome : 'Usuário').charAt(0).toUpperCase() %></div>
+    </a>
+    <div class="dropdown-menu user-dropdown" id="userDropdownMenu" style="display:none;">
+      <div class="dropdown-header text-center">
+        <i class="fas fa-user-circle fa-2x" style="color:var(--primary);"></i>
+        <div class="user-info mt-2">
+          <div style="font-weight:700;font-size:14px;" id="loggedUserName"><%= user && user.nome ? user.nome : 'Usuário' %></div>
+          <% if (user && user.email) { %>
+            <div><small class="text-muted"><%= user.email %></small></div>
+          <% } %>
+          <% if (user && user.id) { %>
+            <div><small class="text-muted"><i class="fas fa-id-card"></i> ID: <strong><%= user.id %></strong></small></div>
+          <% } %>
+        </div>
+      </div>
+      <div class="dropdown-divider"></div>
+      <a class="dropdown-item" href="#" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Logout</a>
+      <a class="dropdown-item" href="#" id="closeBtn"><i class="fas fa-times"></i> Fechar</a>
+    </div>
+  </div>
+</div>
+<script>
+  (function(){
+    var toggle = document.getElementById('userDropdown');
+    var menu   = document.getElementById('userDropdownMenu');
+    if (!toggle || !menu) return;
+    function closeMenu() { menu.style.display = 'none'; }
+    function openMenu()  { menu.style.display = 'block'; }
+    toggle.addEventListener('click', function(e) {
+      e.preventDefault();
+      menu.style.display === 'block' ? closeMenu() : openMenu();
+    });
+    document.addEventListener('click', function(e) {
+      if (!toggle.contains(e.target) && !menu.contains(e.target)) closeMenu();
+    });
+    document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeMenu(); });
+    var closeItem = document.getElementById('closeBtn');
+    if (closeItem) closeItem.addEventListener('click', function(e) { e.preventDefault(); closeMenu(); });
+  })();
+</script>

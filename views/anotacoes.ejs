@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Anotações — Central de Tarefas</title>
+  <%- include('System/headIncludes.ejs') %>
+</head>
+<body>
+<div class="layout-container">
+  <%- include('partials/sidebar.ejs') %>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="page-info">
+          <h1><i class="bi bi-sticky" style="color:var(--primary);"></i> Anotações</h1>
+          <p>Suas notas organizadas no estilo Google Keep</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <%- include('partials/userMenu.ejs') %>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="notes-toolbar">
+        <div class="notes-search">
+          <input type="search" class="form-control form-control-sm" id="searchNotas"
+                 placeholder="🔍 Buscar anotações..." style="border-radius:20px;">
+        </div>
+        <% if (typeof etiquetas !== 'undefined' && etiquetas.length > 0) { %>
+          <div class="filter-chips" id="filterChips">
+            <span class="filter-chip active" data-etiqueta="">Todas</span>
+            <% etiquetas.forEach(function(e) { %>
+              <span class="filter-chip" data-etiqueta="<%= e.nome %>" style="border-color:<%= e.cor %>20;color:<%= e.cor %>">
+                <i class="bi bi-tag" style="font-size:10px;"></i> <%= e.nome %>
+              </span>
+            <% }); %>
+          </div>
+        <% } %>
+        <div class="ms-auto d-flex gap-2">
+          <button class="btn btn-secondary btn-sm" id="btnArquivadas" title="Ver anotações arquivadas">
+            <i class="bi bi-archive"></i> Arquivadas
+          </button>
+        </div>
+      </div>
+      <div id="newNotePlaceholder" class="note-new-placeholder">
+        <span><i class="bi bi-pencil" style="margin-right:8px;color:var(--text-light);"></i>Criar uma nota...</span>
+      </div>
+      <div id="newNoteExpanded" class="note-new-expanded hidden">
+        <input type="text" class="note-new-title" id="newNoteTitle" placeholder="Título">
+        <textarea class="note-new-content" id="newNoteContent" placeholder="Fazer uma anotação..."></textarea>
+        <div class="note-new-toolbar">
+          <div class="color-picker" id="colorPicker">
+            <span class="color-picker-dot cp-default  selected" data-color="default"  title="Padrão"></span>
+            <span class="color-picker-dot cp-yellow"            data-color="yellow"   title="Amarelo"></span>
+            <span class="color-picker-dot cp-amber"             data-color="amber"    title="Âmbar"></span>
+            <span class="color-picker-dot cp-orange"            data-color="orange"   title="Laranja"></span>
+            <span class="color-picker-dot cp-red"               data-color="red"      title="Vermelho"></span>
+            <span class="color-picker-dot cp-pink"              data-color="pink"     title="Rosa"></span>
+            <span class="color-picker-dot cp-rose"              data-color="rose"     title="Rosê"></span>
+            <span class="color-picker-dot cp-coral"             data-color="coral"    title="Coral"></span>
+            <span class="color-picker-dot cp-brown"             data-color="brown"    title="Marrom"></span>
+            <span class="color-picker-dot cp-green"             data-color="green"    title="Verde"></span>
+            <span class="color-picker-dot cp-lime"              data-color="lime"     title="Lima"></span>
+            <span class="color-picker-dot cp-teal"              data-color="teal"     title="Teal"></span>
+            <span class="color-picker-dot cp-mint"              data-color="mint"     title="Menta"></span>
+            <span class="color-picker-dot cp-blue"              data-color="blue"     title="Azul"></span>
+            <span class="color-picker-dot cp-indigo"            data-color="indigo"   title="Índigo"></span>
+            <span class="color-picker-dot cp-purple"            data-color="purple"   title="Roxo"></span>
+            <span class="color-picker-dot cp-lavender"          data-color="lavender" title="Lavanda"></span>
+            <span class="color-picker-dot cp-grey"              data-color="grey"     title="Cinza"></span>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <button type="button" class="btn btn-secondary btn-sm" id="btnCancelarNota">Cancelar</button>
+            <button type="button" class="btn btn-primary btn-sm" id="btnSalvarNota">
+              <i class="bi bi-check-lg"></i> Salvar
+            </button>
+          </div>
+        </div>
+      </div>
+      <%
+        var fixadas = anotacoes.filter(function(a) { return a.fixado; });
+        var normais = anotacoes.filter(function(a) { return !a.fixado; });
+      %>
+      <% if (fixadas.length > 0) { %>
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-light);letter-spacing:0.6px;margin-bottom:10px;">
+          <i class="bi bi-pin-angle"></i> Fixadas
+        </div>
+        <div class="notes-masonry" id="masonryFixadas">
+          <% fixadas.forEach(function(nota) { %>
+            <%- include('partials/notaCard.ejs', { nota: nota }) %>
+          <% }); %>
+        </div>
+        <% if (normais.length > 0) { %>
+          <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:var(--text-light);letter-spacing:0.6px;margin-bottom:10px;margin-top:8px;">
+            <i class="bi bi-sticky"></i> Outras notas
+          </div>
+        <% } %>
+      <% } %>
+      <div class="notes-masonry" id="masonryNormais">
+        <% normais.forEach(function(nota) { %>
+          <%- include('partials/notaCard.ejs', { nota: nota }) %>
+        <% }); %>
+        <% if (anotacoes.length === 0) { %>
+          <div style="text-align:center;padding:60px 20px;color:var(--text-light);grid-column:1/-1;">
+            <i class="bi bi-sticky" style="font-size:48px;margin-bottom:16px;display:block;"></i>
+            <p style="font-size:16px;font-weight:600;">Nenhuma anotação ainda</p>
+            <p style="font-size:13px;">Clique em "Criar uma nota..." para começar</p>
+          </div>
+        <% } %>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="modalEditarNota" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" id="modalNotaCard" style="border-radius:10px;border:none;">
+      <div class="modal-body" style="padding:20px;">
+        <input type="hidden" id="editNotaId">
+        <input type="text" class="note-new-title" id="editNotaTitulo" placeholder="Título" style="width:100%;border:none;padding:4px 0;margin-bottom:10px;font-size:16px;font-weight:700;outline:none;">
+        <textarea class="note-new-content" id="editNotaConteudo" placeholder="Fazer uma anotação..." style="width:100%;border:none;resize:none;font-size:14px;outline:none;min-height:120px;"></textarea>
+        <div class="note-new-toolbar" style="padding:8px 0 0;border-top:1px solid var(--gray);">
+          <div class="color-picker" id="editColorPicker">
+            <span class="color-picker-dot cp-default"  data-color="default"  title="Padrão"></span>
+            <span class="color-picker-dot cp-yellow"   data-color="yellow"   title="Amarelo"></span>
+            <span class="color-picker-dot cp-amber"    data-color="amber"    title="Âmbar"></span>
+            <span class="color-picker-dot cp-orange"   data-color="orange"   title="Laranja"></span>
+            <span class="color-picker-dot cp-red"      data-color="red"      title="Vermelho"></span>
+            <span class="color-picker-dot cp-pink"     data-color="pink"     title="Rosa"></span>
+            <span class="color-picker-dot cp-rose"     data-color="rose"     title="Rosê"></span>
+            <span class="color-picker-dot cp-coral"    data-color="coral"    title="Coral"></span>
+            <span class="color-picker-dot cp-brown"    data-color="brown"    title="Marrom"></span>
+            <span class="color-picker-dot cp-green"    data-color="green"    title="Verde"></span>
+            <span class="color-picker-dot cp-lime"     data-color="lime"     title="Lima"></span>
+            <span class="color-picker-dot cp-teal"     data-color="teal"     title="Teal"></span>
+            <span class="color-picker-dot cp-mint"     data-color="mint"     title="Menta"></span>
+            <span class="color-picker-dot cp-blue"     data-color="blue"     title="Azul"></span>
+            <span class="color-picker-dot cp-indigo"   data-color="indigo"   title="Índigo"></span>
+            <span class="color-picker-dot cp-purple"   data-color="purple"   title="Roxo"></span>
+            <span class="color-picker-dot cp-lavender" data-color="lavender" title="Lavanda"></span>
+            <span class="color-picker-dot cp-grey"     data-color="grey"     title="Cinza"></span>
+          </div>
+          <div class="ms-auto d-flex gap-2">
+            <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Fechar</button>
+            <button type="button" class="btn btn-primary btn-sm" id="btnSalvarEdicao">
+              <i class="bi bi-check-lg"></i> Salvar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('System/bodyIncludes.ejs') %>
+<script>
+var newColor = 'default';
+var editColor = 'default';
+var bsEditModal = new bootstrap.Modal(document.getElementById('modalEditarNota'));
+
+document.getElementById('newNotePlaceholder').addEventListener('click', function() {
+  this.style.display = 'none';
+  document.getElementById('newNoteExpanded').classList.remove('hidden');
+  document.getElementById('newNoteContent').focus();
+});
+
+document.addEventListener('click', function(e) {
+  var expanded = document.getElementById('newNoteExpanded');
+  var placeholder = document.getElementById('newNotePlaceholder');
+  if (expanded && !expanded.classList.contains('hidden')) {
+    if (!expanded.contains(e.target) && e.target !== placeholder) {
+      saveNewNota(false);
+    }
+  }
+});
+
+document.getElementById('btnCancelarNota').addEventListener('click', function() {
+  cancelNota();
+});
+
+document.getElementById('btnSalvarNota').addEventListener('click', function() {
+  saveNewNota(true);
+});
+
+function saveNewNota(forceSave) {
+  var titulo   = (document.getElementById('newNoteTitle').value || '').trim();
+  var conteudo = (document.getElementById('newNoteContent').value || '').trim();
+  if (!titulo && !conteudo && !forceSave) { cancelNota(); return; }
+  if (!titulo && !conteudo) { cancelNota(); return; }
+
+  apiFetch('/api/anotacoes', { method: 'POST', body: { titulo: titulo, conteudo: conteudo, cor: newColor } })
+    .then(function(r) {
+      if (r.success) {
+        cancelNota();
+        showToast('Anotação criada!', 'success');
+        setTimeout(function() { location.reload(); }, 600);
+      } else { showToast('Erro ao salvar nota', 'error'); }
+    });
+}
+
+function cancelNota() {
+  document.getElementById('newNoteTitle').value   = '';
+  document.getElementById('newNoteContent').value = '';
+  document.getElementById('newNoteExpanded').classList.add('hidden');
+  document.getElementById('newNotePlaceholder').style.display = 'block';
+  newColor = 'default';
+  document.querySelectorAll('#colorPicker .color-picker-dot').forEach(function(d) {
+    d.classList.toggle('selected', d.dataset.color === 'default');
+  });
+}
+
+document.getElementById('colorPicker').addEventListener('click', function(e) {
+  var dot = e.target.closest('.color-picker-dot');
+  if (!dot) return;
+  newColor = dot.dataset.color;
+  document.querySelectorAll('#colorPicker .color-picker-dot').forEach(function(d) { d.classList.remove('selected'); });
+  dot.classList.add('selected');
+  var expanded = document.getElementById('newNoteExpanded');
+  expanded.className = 'note-new-expanded note-color-' + newColor;
+});
+
+document.getElementById('editColorPicker').addEventListener('click', function(e) {
+  var dot = e.target.closest('.color-picker-dot');
+  if (!dot) return;
+  editColor = dot.dataset.color;
+  document.querySelectorAll('#editColorPicker .color-picker-dot').forEach(function(d) { d.classList.remove('selected'); });
+  dot.classList.add('selected');
+  document.getElementById('modalNotaCard').className = 'modal-content note-color-' + editColor;
+  document.getElementById('modalNotaCard').style.border = 'none';
+});
+
+function editarNota(id) {
+  apiFetch('/api/anotacoes/' + id).then(function(r) {
+    if (!r.success || !r.data) return;
+    var n = r.data;
+    document.getElementById('editNotaId').value    = id;
+    document.getElementById('editNotaTitulo').value  = n.titulo || '';
+    document.getElementById('editNotaConteudo').value = n.conteudo || '';
+    editColor = n.cor || 'default';
+    document.querySelectorAll('#editColorPicker .color-picker-dot').forEach(function(d) {
+      d.classList.toggle('selected', d.dataset.color === editColor);
+    });
+    var mc = document.getElementById('modalNotaCard');
+    mc.className = 'modal-content note-color-' + editColor;
+    mc.style.border = 'none';
+    bsEditModal.show();
+  });
+}
+
+document.getElementById('btnSalvarEdicao').addEventListener('click', function() {
+  var id       = document.getElementById('editNotaId').value;
+  var titulo   = document.getElementById('editNotaTitulo').value.trim();
+  var conteudo = document.getElementById('editNotaConteudo').value.trim();
+  apiFetch('/api/anotacoes/' + id + '/update', {
+    method: 'POST',
+    body: { titulo: titulo, conteudo: conteudo, cor: editColor }
+  }).then(function(r) {
+    if (r.success) {
+      bsEditModal.hide();
+      showToast('Nota atualizada!', 'success');
+      setTimeout(function() { location.reload(); }, 600);
+    } else { showToast('Erro ao atualizar', 'error'); }
+  });
+});
+
+function excluirNota(id) {
+  if (!confirm('Deseja excluir esta anotação?')) return;
+  apiFetch('/api/anotacoes/' + id + '/delete', { method: 'POST' })
+    .then(function(r) {
+      if (r.success) {
+        showToast('Anotação excluída!', 'success');
+        var card = document.querySelector('[data-nota-id="' + id + '"]');
+        if (card) { card.style.opacity = '0'; card.style.transition = 'opacity 0.3s'; setTimeout(function() { card.remove(); }, 300); }
+      } else { showToast('Erro ao excluir', 'error'); }
+    });
+}
+
+function fixarNota(id, btn) {
+  apiFetch('/api/anotacoes/' + id + '/pin', { method: 'POST' })
+    .then(function(r) {
+      if (r.success) {
+        showToast(r.fixado ? 'Nota fixada!' : 'Nota desafixada!', 'success');
+        setTimeout(function() { location.reload(); }, 500);
+      }
+    });
+}
+
+function arquivarNota(id) {
+  apiFetch('/api/anotacoes/' + id + '/archive', { method: 'POST' })
+    .then(function(r) {
+      if (r.success) {
+        showToast(r.arquivado ? 'Nota arquivada!' : 'Nota restaurada!', 'success');
+        var card = document.querySelector('[data-nota-id="' + id + '"]');
+        if (card) { card.style.opacity = '0'; card.style.transition = 'opacity 0.3s'; setTimeout(function() { card.remove(); }, 300); }
+      }
+    });
+}
+
+document.getElementById('searchNotas').addEventListener('input', function() {
+  var term = this.value.toLowerCase();
+  document.querySelectorAll('.note-card').forEach(function(card) {
+    var titulo   = (card.querySelector('.note-title')   || {}).textContent || '';
+    var conteudo = (card.querySelector('.note-content') || {}).textContent || '';
+    var match = titulo.toLowerCase().includes(term) || conteudo.toLowerCase().includes(term);
+    card.style.display = match ? '' : 'none';
+  });
+});
+
+document.querySelectorAll('.filter-chip').forEach(function(chip) {
+  chip.addEventListener('click', function() {
+    document.querySelectorAll('.filter-chip').forEach(function(c) { c.classList.remove('active'); });
+    this.classList.add('active');
+    var etiqueta = this.dataset.etiqueta;
+    document.querySelectorAll('.note-card').forEach(function(card) {
+      if (!etiqueta) { card.style.display = ''; return; }
+      var tags = card.dataset.tags || '';
+      card.style.display = tags.toLowerCase().includes(etiqueta.toLowerCase()) ? '' : 'none';
+    });
+  });
+});
+
+document.getElementById('btnArquivadas').addEventListener('click', function() {
+  window.location.href = '/anotacoes?arquivadas=1';
+});
+</script>
+</body>
+</html>

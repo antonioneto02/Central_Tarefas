@@ -1,0 +1,33 @@
+<aside class="sidebar">
+  <div class="sidebar-header">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-badge">CT</div>
+    </div>
+    <div class="sidebar-title"><span class="title-text">CENTRAL TAREFAS</span></div>
+  </div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">
+      <span class="nav-label nav-text">Principal</span>
+      <a class="nav-item <%= currentPath === '/dashboard' ? 'active' : '' %>" href="/dashboard">
+        <i class="bi bi-house-door"></i> <span class="nav-text">Dashboard</span>
+      </a>
+    </div>
+    <hr class="sidebar-divider">
+    <div class="nav-section">
+      <span class="nav-label nav-text">Tarefas</span>
+      <a class="nav-item <%= currentPath === '/tarefas/quadro' ? 'active' : '' %>" href="/tarefas/quadro">
+        <i class="bi bi-kanban"></i> <span class="nav-text">Quadro de Tarefas</span>
+      </a>
+      <a class="nav-item <%= currentPath === '/tarefas/listagem' ? 'active' : '' %>" href="/tarefas/listagem">
+        <i class="bi bi-list-check"></i> <span class="nav-text">Listagem de Tarefas</span>
+      </a>
+    </div>
+    <hr class="sidebar-divider">
+    <div class="nav-section">
+      <span class="nav-label nav-text">Notas</span>
+      <a class="nav-item <%= currentPath === '/anotacoes' ? 'active' : '' %>" href="/anotacoes">
+        <i class="bi bi-sticky"></i> <span class="nav-text">Anotações</span>
+      </a>
+    </div>
+  </nav>
+</aside>

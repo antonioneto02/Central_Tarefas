@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Listagem de Tarefas — Central de Tarefas</title>
+  <%- include('System/headIncludes.ejs') %>
+</head>
+<body>
+<div class="layout-container">
+  <%- include('partials/sidebar.ejs') %>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="page-info">
+          <h1><i class="bi bi-list-check" style="color:var(--primary);"></i> Listagem de Tarefas</h1>
+          <p>Visualize, filtre e exporte todas as suas tarefas</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-primary btn-sm" id="btnNovaTarefa">
+          <i class="bi bi-plus-lg"></i> Nova Tarefa
+        </button>
+        <%- include('partials/userMenu.ejs') %>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Widgets -->
+      <div class="widgets-grid">
+        <div class="widget">
+          <div class="widget-content">
+            <h3 id="wTotal"><%= stats.total || 0 %></h3>
+            <p>Total de Tarefas</p>
+          </div>
+          <div class="widget-icon primary"><i class="bi bi-list-check"></i></div>
+        </div>
+        <div class="widget">
+          <div class="widget-content">
+            <h3 id="wConcluidas"><%= stats.concluidas || 0 %></h3>
+            <p>Concluídas</p>
+          </div>
+          <div class="widget-icon success"><i class="bi bi-check-circle"></i></div>
+        </div>
+        <div class="widget">
+          <div class="widget-content">
+            <h3 id="wAndamento"><%= stats.em_andamento || 0 %></h3>
+            <p>Em Andamento</p>
+          </div>
+          <div class="widget-icon warning"><i class="bi bi-arrow-repeat"></i></div>
+        </div>
+        <div class="widget">
+          <div class="widget-content">
+            <h3 id="wAtrasadas"><%= stats.atrasadas || 0 %></h3>
+            <p>Atrasadas</p>
+          </div>
+          <div class="widget-icon danger"><i class="bi bi-exclamation-triangle"></i></div>
+        </div>
+      </div>
+
+      <!-- Tabela -->
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-table me-2"></i>Tarefas</span>
+          <span class="badge badge-primary" id="totalBadge"><%= tarefas.length %> registros</span>
+        </div>
+        <div class="card-body" style="padding:12px;">
+          <!-- Filtros typeahead (padrão produto-base) -->
+          <div class="d-flex gap-2 flex-wrap mb-2" id="colFiltersRow">
+            <div class="filter-wrap" style="width:160px; flex:0 0 auto;">
+              <input type="search" class="form-control form-control-sm col-filter" data-col="1"
+                placeholder="Título" style="width:100%; box-sizing:border-box;">
+              <div class="filter-dropdown" id="dlbox-col-1" data-col="1" aria-hidden="true"></div>
+            </div>
+            <div class="filter-wrap" style="width:130px; flex:0 0 auto;">
+              <input type="search" class="form-control form-control-sm col-filter" data-col="2"
+                placeholder="Status" style="width:100%; box-sizing:border-box;">
+              <div class="filter-dropdown" id="dlbox-col-2" data-col="2" aria-hidden="true"></div>
+            </div>
+            <div class="filter-wrap" style="width:120px; flex:0 0 auto;">
+              <input type="search" class="form-control form-control-sm col-filter" data-col="3"
+                placeholder="Prioridade" style="width:100%; box-sizing:border-box;">
+              <div class="filter-dropdown" id="dlbox-col-3" data-col="3" aria-hidden="true"></div>
+            </div>
+            <!-- Responsável e Categoria removidos conforme solicitado -->
+            <button class="btn btn-secondary btn-sm" id="btnLimparFiltro">
+              <i class="bi bi-x-circle"></i> Limpar
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table id="tabelaTarefas" class="table table-bordered custom-table" style="width:100%">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Título</th>
+                  <th>Status</th>
+                  <th>Prioridade</th>
+                  <th>Vencimento</th>
+                  <th>Criado em</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% tarefas.forEach(function(t) { %>
+                  <%
+                    var statusMap = { A_FAZER: 'A Fazer', EM_ANDAMENTO: 'Em Andamento', EM_REVISAO: 'Em Revisão', CONCLUIDO: 'Concluído' };
+                    var statusLabel = statusMap[t.status] || t.status;
+                    var prioLabel   = t.prioridade || 'MEDIA';
+                    var isOverdue   = t.data_vencimento && t.status !== 'CONCLUIDO' && new Date(t.data_vencimento) < new Date();
+                    var vencimento  = t.data_vencimento ? new Date(t.data_vencimento).toLocaleDateString('pt-BR') : '';
+                    var criacao     = t.data_criacao ? new Date(t.data_criacao).toLocaleDateString('pt-BR') : '';
+                  %>
+                  <tr>
+                    <td><%= t.id %></td>
+                    <td><strong><%= t.titulo %></strong></td>
+                    <td><span class="status-badge <%= t.status.toLowerCase() %>"><%= statusLabel %></span></td>
+                    <td><span class="priority-badge <%= prioLabel.toLowerCase() %>"><%= prioLabel %></span></td>
+                    <td style="<%= isOverdue ? 'color:var(--danger);font-weight:600;' : '' %>"><%= vencimento || '—' %></td>
+                    <td><%= criacao %></td>
+                    <td style="text-align:center; white-space:nowrap;">
+                      <button type="button" class="btn btn-primary compact-action-btn me-1"
+                              title="Editar" onclick="editarTarefa(<%= t.id %>)">
+                        <i class="bi bi-pencil" style="font-size:11px; line-height:1; display:block;"></i>
+                      </button>
+                      <button type="button" class="btn btn-danger compact-action-btn"
+                              title="Excluir" onclick="excluirTarefa(<%= t.id %>)">
+                        <i class="bi bi-trash" style="font-size:11px; line-height:1; display:block;"></i>
+                      </button>
+                    </td>
+                  </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Gráficos dentro do card (padrão produto-base) -->
+          <div class="charts-row d-flex gap-3 mt-3" style="align-items:stretch;">
+            <div class="card" style="flex:1 1 420px; min-width:280px;">
+              <div class="card-body">
+                <h6 style="margin-top:0;margin-bottom:8px;font-size:14px;">Tarefas por Status</h6>
+                <canvas id="chartStatus" class="chart-canvas" aria-label="Tarefas por Status"></canvas>
+              </div>
+            </div>
+            <div class="card" style="flex:1 1 360px; min-width:260px;">
+              <div class="card-body">
+                <h6 style="margin-top:0;margin-bottom:8px;font-size:14px;">Tarefas por Prioridade</h6>
+                <canvas id="chartPrioridade" class="chart-canvas" aria-label="Tarefas por Prioridade"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Criar/Editar Tarefa -->
+<div class="modal fade" id="modalTarefa" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--primary);color:white;">
+        <h5 class="modal-title"><i class="bi bi-list-check"></i> <span id="modalTarefaTitulo">Tarefa</span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="tarefaId">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">Título *</label>
+            <input type="text" class="form-control" id="fTitulo" placeholder="Descreva a tarefa..." required>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Descrição</label>
+            <textarea class="form-control" id="fDescricao" rows="3"></textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Status</label>
+            <select class="form-select" id="fStatus">
+              <option value="A_FAZER">A Fazer</option>
+              <option value="EM_ANDAMENTO">Em Andamento</option>
+              <option value="EM_REVISAO">Em Revisão</option>
+              <option value="CONCLUIDO">Concluído</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Prioridade</label>
+            <select class="form-select" id="fPrioridade">
+              <option value="ALTA">Alta</option>
+              <option value="MEDIA" selected>Média</option>
+              <option value="BAIXA">Baixa</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Vencimento</label>
+            <input type="date" class="form-control" id="fVencimento">
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Responsável</label>
+            <select class="form-select" id="fResponsavel">
+              <option value="">Não atribuído</option>
+              <% if (typeof responsaveis !== 'undefined') { responsaveis.forEach(function(r) { %>
+                <option value="<%= r.nome %>"><%= r.nome %></option>
+              <% }); } %>
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold">Categoria</label>
+            <select class="form-select" id="fCategoria">
+              <option value="">Sem categoria</option>
+              <% if (typeof categorias !== 'undefined') { categorias.forEach(function(c) { %>
+                <option value="<%= c.id %>"><%= c.nome %></option>
+              <% }); } %>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnSalvarTarefa">
+          <i class="bi bi-check-lg"></i> Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('System/bodyIncludes.ejs') %>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var dt = null;
+  try {
+        if (window.$ && $.fn && $.fn.DataTable) {
+      dt = $('#tabelaTarefas').DataTable({
+        autoWidth: false,
+        order: [[0, 'desc']],
+        columnDefs: [
+          { targets: 0, visible: false },
+          { targets: 6, orderable: false, searchable: false }
+        ],
+        dom: "<'top'<'d-flex justify-content-between'<'dt-length'l><'d-flex justify-content-end align-items-center'<'dt-search'f><'dt-buttons ms-2'B>>>>rtip",
+        buttons: [{
+          extend: 'excelHtml5',
+          text: '<i class="fas fa-file-excel"></i> Excel',
+          titleAttr: 'Exportar para Excel',
+          className: 'btn btn-success btn-sm',
+          title: 'Tarefas',
+          exportOptions: { columns: [1,2,3,4,5] }
+        }],
+        lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'Todos']],
+        pageLength: 25,
+        language: {
+          decimal: ',', thousands: '.',
+          emptyTable: 'Nenhuma tarefa encontrada',
+          info: 'Mostrando _START_ a _END_ de _TOTAL_ registros',
+          infoEmpty: 'Mostrando 0 a 0 de 0 registros',
+          infoFiltered: '(filtrado de _MAX_ registros)',
+          lengthMenu: 'Mostrar _MENU_ registros',
+          loadingRecords: 'Carregando...', processing: 'Processando...',
+          search: 'Pesquisar:', zeroRecords: 'Nenhum registro encontrado',
+          paginate: { first: 'Primeiro', last: 'Último', next: 'Próximo', previous: 'Anterior' }
+        }
+      });
+
+      // Filtros typeahead (padrão produto-base)
+      document.querySelectorAll('.col-filter').forEach(function (inp) {
+        inp.addEventListener('input', function () {
+          var col = parseInt(this.getAttribute('data-col'), 10);
+          dt.column(col).search(this.value).draw();
+          updateDropdownForInput(this);
+        });
+        inp.addEventListener('focus', function () { updateDropdownForInput(this); });
+        inp.addEventListener('blur', function () {
+          var col = parseInt(this.getAttribute('data-col'), 10);
+          var box = document.getElementById('dlbox-col-' + col);
+          if (box) { setTimeout(function () { box.style.display = 'none'; }, 180); }
+        });
+      });
+
+      function updateDropdownForInput(inp) {
+        var col = parseInt(inp.getAttribute('data-col'), 10);
+        var box = document.getElementById('dlbox-col-' + col);
+        if (!box) return;
+        var q = (inp.value || '').toString().trim().toLowerCase();
+        var any = false;
+        box.querySelectorAll('.filter-option').forEach(function (opt) {
+          var txt = (opt.textContent || opt.innerText || '').toString().toLowerCase();
+          var show = q === '' || txt.indexOf(q) !== -1;
+          opt.style.display = show ? '' : 'none';
+          if (show) any = true;
+        });
+        box.style.display = any ? 'block' : 'none';
+      }
+
+      function populateDatalists() {
+        if (!dt) return;
+        var all = dt.rows().data().toArray();
+        document.querySelectorAll('.col-filter').forEach(function (inp) {
+          var col = parseInt(inp.getAttribute('data-col'), 10);
+          var boxId = 'dlbox-col-' + col;
+          var box = document.getElementById(boxId);
+          if (!box) return;
+          var set = {};
+          all.forEach(function (r) {
+            var v = r[col];
+            if (v != null) {
+              var s = ('' + v).replace(/<[^>]*>/g, '').trim();
+              if (s && s !== '—') set[s] = true;
+            }
+          });
+          var opts = Object.keys(set).sort(function (a, b) {
+            try { return a.localeCompare(b, 'pt-BR', { numeric: true }); } catch (e) { return (a + '').localeCompare(b + ''); }
+          });
+          box.innerHTML = '';
+          opts.forEach(function (o) {
+            var item = document.createElement('div');
+            item.className = 'filter-option';
+            item.textContent = o;
+            item.setAttribute('role', 'option');
+            item.addEventListener('mousedown', function (ev) {
+              ev.preventDefault();
+              inp.value = o;
+              inp.dispatchEvent(new Event('input', { bubbles: true }));
+              inp.focus();
+              box.style.display = 'none';
+            });
+            box.appendChild(item);
+          });
+          box.style.display = 'none';
+        });
+      }
+      populateDatalists();
+      dt.on('draw.dt', populateDatalists);
+      dt.on('draw.dt', updateWidgets);
+
+      // Limpar filtros
+      var btnLimpar = document.getElementById('btnLimparFiltro');
+      if (btnLimpar) {
+        btnLimpar.addEventListener('click', function () {
+          document.querySelectorAll('.col-filter').forEach(function (i) { i.value = ''; });
+          if (dt) { dt.search('').columns().search('').draw(); }
+        });
+      }
+
+      // Gráficos (atualizados via draw.dt)
+      var chartStatus = null, chartPrioridade = null;
+
+      function updateCharts() {
+        try {
+          if (!dt) return;
+          var rows = dt.rows({ search: 'applied' }).data().toArray();
+          var statusCount  = { 'A Fazer': 0, 'Em Andamento': 0, 'Em Revisão': 0, 'Concluído': 0 };
+          var prioCount    = { 'ALTA': 0, 'MEDIA': 0, 'BAIXA': 0 };
+          rows.forEach(function (r) {
+            var st = (r[2] || '').replace(/<[^>]*>/g, '').trim();
+            var pr = (r[3] || '').replace(/<[^>]*>/g, '').trim();
+            if (statusCount[st] !== undefined) statusCount[st]++;
+            if (prioCount[pr] !== undefined) prioCount[pr]++;
+          });
+          var sLabels = Object.keys(statusCount);
+          var sData   = sLabels.map(function (k) { return statusCount[k]; });
+          var pLabels = ['Alta', 'Média', 'Baixa'];
+          var pData   = [prioCount['ALTA'], prioCount['MEDIA'], prioCount['BAIXA']];
+
+          var ctxS = document.getElementById('chartStatus');
+          if (ctxS) {
+            if (!chartStatus) {
+              chartStatus = new Chart(ctxS, {
+                type: 'bar',
+                data: { labels: sLabels, datasets: [{ data: sData, backgroundColor: ['#94a3b8','#f59e0b','#7c3aed','#059669'], borderRadius: 6, borderSkipped: false }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+              });
+            } else {
+              chartStatus.data.datasets[0].data = sData; chartStatus.update();
+            }
+          }
+          var ctxP = document.getElementById('chartPrioridade');
+          if (ctxP) {
+            if (!chartPrioridade) {
+              chartPrioridade = new Chart(ctxP, {
+                type: 'doughnut',
+                data: { labels: pLabels, datasets: [{ data: pData, backgroundColor: ['#dc2626','#f59e0b','#059669'], borderWidth: 2, borderColor: '#fff' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } }, cutout: '60%' }
+              });
+            } else {
+              chartPrioridade.data.datasets[0].data = pData; chartPrioridade.update();
+            }
+          }
+        } catch (err) { console.error('Chart update error:', err); }
+      }
+      dt.on('draw.dt', function () { updateCharts(); });
+      setTimeout(function () { updateCharts(); }, 120);
+
+      updateWidgets();
+    }
+  } catch (e) { console.error('DataTable init error:', e); }
+
+      function updateWidgets() {
+    try {
+      if (!dt) return;
+      var rows = dt.rows({ search: 'applied' }).data().toArray();
+      var total = rows.length, concluidas = 0, andamento = 0, atrasadas = 0;
+      var hoje = new Date(); hoje.setHours(0,0,0,0);
+      rows.forEach(function (r) {
+        var st  = (r[2] || '').replace(/<[^>]*>/g, '').trim();
+        var venc = (r[4] || '').replace(/<[^>]*>/g, '').trim();
+        if (st === 'Concluído') concluidas++;
+        if (st === 'Em Andamento') andamento++;
+        if (venc && venc !== '—' && st !== 'Concluído') {
+          var parts = venc.split('/');
+          if (parts.length === 3) {
+            var d = new Date(parseInt(parts[2]), parseInt(parts[1])-1, parseInt(parts[0]));
+            if (d < hoje) atrasadas++;
+          }
+        }
+      });
+      var el = function(id) { return document.getElementById(id); };
+      if (el('wTotal'))     el('wTotal').textContent     = total;
+      if (el('wConcluidas')) el('wConcluidas').textContent = concluidas;
+      if (el('wAndamento')) el('wAndamento').textContent  = andamento;
+      if (el('wAtrasadas')) el('wAtrasadas').textContent  = atrasadas;
+      if (el('totalBadge')) el('totalBadge').textContent  = total + ' registro' + (total !== 1 ? 's' : '');
+    } catch(_) {}
+  }
+
+  // Modal
+  var bsModal = new bootstrap.Modal(document.getElementById('modalTarefa'));
+
+  document.getElementById('btnNovaTarefa').addEventListener('click', function () {
+    clearModal();
+    document.getElementById('modalTarefaTitulo').textContent = 'Nova Tarefa';
+    bsModal.show();
+  });
+
+  window.editarTarefa = function (id) {
+    clearModal();
+    document.getElementById('modalTarefaTitulo').textContent = 'Editar Tarefa';
+    document.getElementById('tarefaId').value = id;
+    apiFetch('/api/tarefas/' + id).then(function (r) {
+      if (!r.success || !r.data) return;
+      var t = r.data;
+      document.getElementById('fTitulo').value       = t.titulo || '';
+      document.getElementById('fDescricao').value    = t.descricao || '';
+      document.getElementById('fStatus').value       = t.status || 'A_FAZER';
+      document.getElementById('fPrioridade').value   = t.prioridade || 'MEDIA';
+      document.getElementById('fVencimento').value   = t.data_vencimento ? t.data_vencimento.substring(0,10) : '';
+      document.getElementById('fResponsavel').value  = t.responsavel_nome || '';
+      document.getElementById('fCategoria').value    = t.id_categoria || '';
+    });
+    bsModal.show();
+  };
+
+  window.excluirTarefa = function (id) {
+    if (!confirm('Deseja excluir esta tarefa?')) return;
+    apiFetch('/api/tarefas/' + id + '/delete', { method: 'POST' })
+      .then(function (r) {
+        if (r.success) { showToast('Tarefa excluída!', 'success'); setTimeout(function () { location.reload(); }, 700); }
+        else showToast('Erro ao excluir', 'error');
+      });
+  };
+
+  function clearModal() {
+    document.getElementById('tarefaId').value     = '';
+    document.getElementById('fTitulo').value      = '';
+    document.getElementById('fDescricao').value   = '';
+    document.getElementById('fStatus').value      = 'A_FAZER';
+    document.getElementById('fPrioridade').value  = 'MEDIA';
+    document.getElementById('fVencimento').value  = '';
+    document.getElementById('fResponsavel').value = '';
+    document.getElementById('fCategoria').value   = '';
+  }
+
+  document.getElementById('btnSalvarTarefa').addEventListener('click', function () {
+    var id     = document.getElementById('tarefaId').value;
+    var titulo = document.getElementById('fTitulo').value.trim();
+    if (!titulo) { showToast('Título é obrigatório', 'error'); return; }
+    var payload = {
+      titulo:           titulo,
+      descricao:        document.getElementById('fDescricao').value,
+      status:           document.getElementById('fStatus').value,
+      prioridade:       document.getElementById('fPrioridade').value,
+      data_vencimento:  document.getElementById('fVencimento').value || null,
+      responsavel_nome: document.getElementById('fResponsavel').value || null,
+      id_categoria:     parseInt(document.getElementById('fCategoria').value) || null,
+    };
+    var url = id ? '/api/tarefas/' + id + '/update' : '/api/tarefas';
+    apiFetch(url, { method: 'POST', body: payload })
+      .then(function (r) {
+        if (r.success) { bsModal.hide(); showToast(id ? 'Tarefa atualizada!' : 'Tarefa criada!', 'success'); setTimeout(function () { location.reload(); }, 700); }
+        else showToast('Erro ao salvar', 'error');
+      });
+  });
+});
+</script>
+<style>
+@keyframes fadeInUp {
+  from { opacity:0; transform:translateY(16px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+/* Filtros typeahead */
+.filter-wrap { position: relative; display: inline-block; }
+.filter-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0; right: 0;
+  background: #fff;
+  border: 1px solid #e3e6ea;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  border-radius: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 1050;
+  display: none;
+}
+.filter-option { padding: 6px 10px; cursor: pointer; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.filter-option:hover { background: #f6f8fa; }
+/* Tabela — alinhado com estilo Cini-Pricing */
+.custom-table, .card-body .custom-table { width: 100%; border-radius: 0; overflow: hidden; background: white; margin-bottom: 0; box-shadow: none; }
+
+#tabelaTarefas, #tabelaTarefas.custom-table { width: 100% !important; }
+
+#tabelaTarefas thead th,
+#tabelaTarefas tbody td,
+#tabelaTarefas th {
+  padding: 6px 8px !important;
+  font-size: 13px !important;
+  border: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle !important;
+}
+
+#tabelaTarefas thead th {
+  background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%) !important;
+  color: white !important;
+  font-weight: 600 !important;
+  text-transform: uppercase !important;
+  font-size: 12px !important;
+  letter-spacing: 0.5px !important;
+  white-space: nowrap;
+}
+
+#tabelaTarefas tbody tr:hover { background-color: #f8f9fa !important; }
+#tabelaTarefas tbody tr:nth-child(even) { background-color: #f8f9fa !important; }
+
+#tabelaTarefas .status-badge,
+#tabelaTarefas .priority-badge {
+  padding: 4px 8px !important;
+  font-size: 12px !important;
+  line-height: 1.2 !important;
+  border-radius: 4px !important;
+  display: inline-block !important;
+}
+
+/* reduce generic button size inside table cells to avoid tall rows */
+#tabelaTarefas tbody td .btn {
+  padding: 0 4px !important;
+  margin: 0 !important;
+  min-height: 14px !important;
+  height: 14px !important;
+  line-height: 1 !important;
+  vertical-align: middle !important;
+  border-radius: 4px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* Chart canvas */
+.chart-canvas { width: 100% !important; height: 260px !important; }
+
+/* compact action buttons — aumentar levemente para 16x16 */
+#tabelaTarefas tbody td .compact-action-btn {
+  padding: 0 !important;
+  height: 16px !important;
+  min-height: 16px !important;
+  min-width: 16px !important;
+  width: 16px !important;
+  font-size: 0.65rem !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 3px !important;
+  box-sizing: border-box !important;
+  line-height: 1 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  vertical-align: middle !important;
+  border-width: 1px !important;
+  overflow: visible !important;
+}
+
+#tabelaTarefas tbody td .compact-action-btn i { font-size: 12px !important; line-height: 1 !important; display:block; margin:0 !important; padding:0 !important; }
+</style>
+</body>
+</html>
