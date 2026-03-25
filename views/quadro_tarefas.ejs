@@ -166,6 +166,15 @@
 </div>
 
 <%- include('System/bodyIncludes.ejs') %>
+<style>
+.checklist-drag-handle { cursor: grab; padding: 0 2px; }
+.checklist-drag-handle:active { cursor: grabbing; }
+.checklist-ghost { opacity: 0.4; background: var(--primary-light, #dbeafe); border-radius: 4px; }
+.checklist-item { border-radius: 4px; padding: 2px 4px; transition: background 0.15s; }
+.checklist-item:hover { background: #f6f8fa; }
+.checklist-edit-btn { opacity: 0; transition: opacity 0.15s; }
+.checklist-item:hover .checklist-edit-btn { opacity: 1; }
+</style>
 <script>
 var columns = ['A_FAZER','EM_ANDAMENTO','EM_REVISAO','CONCLUIDO'];
 
@@ -330,6 +339,8 @@ document.getElementById('btnExcluirTarefa').addEventListener('click', function()
     });
 });
 
+var checklistSortable = null;
+
 function loadChecklist(tarefaId) {
   apiFetch('/api/tarefas/' + tarefaId + '/checklist')
     .then(function(r) {
@@ -337,18 +348,96 @@ function loadChecklist(tarefaId) {
       var container = document.getElementById('checklistItems');
       container.innerHTML = '';
       r.data.forEach(function(item) { renderCheckItem(container, item); });
+      initChecklistSortable(tarefaId);
     });
+}
+
+function initChecklistSortable(tarefaId) {
+  var container = document.getElementById('checklistItems');
+  if (checklistSortable) { checklistSortable.destroy(); checklistSortable = null; }
+  checklistSortable = Sortable.create(container, {
+    animation: 150,
+    handle: '.checklist-drag-handle',
+    ghostClass: 'checklist-ghost',
+    onEnd: function() {
+      var items = [];
+      Array.from(container.children).forEach(function(el, i) {
+        if (el.dataset && el.dataset.checkId) {
+          items.push({ id: parseInt(el.dataset.checkId), posicao: i });
+        }
+      });
+      apiFetch('/api/tarefas/' + tarefaId + '/checklist/reorder', { method: 'POST', body: { items: items } })
+        .catch(function() { showToast('Erro ao salvar ordem', 'error'); });
+    }
+  });
 }
 
 function renderCheckItem(container, item) {
   var div = document.createElement('div');
-  div.className = 'd-flex align-items-center gap-2 mb-1';
+  div.className = 'd-flex align-items-center gap-2 mb-1 checklist-item';
+  div.dataset.checkId = item.id;
   div.innerHTML = `
-    <input type="checkbox" class="form-check-input" ${item.concluido ? 'checked' : ''} onchange="toggleCheck(${item.id}, this)">
-    <span style="font-size:13px;${item.concluido ? 'text-decoration:line-through;color:var(--text-light);' : ''}">${item.descricao}</span>
-    <button type="button" class="btn-close ms-auto" style="font-size:9px;" onclick="deleteCheck(${item.id}, this.closest('div'))"></button>
+    <span class="checklist-drag-handle" title="Arrastar"><i class="bi bi-grip-vertical" style="font-size:13px;color:#aaa;cursor:grab;"></i></span>
+    <input type="checkbox" class="form-check-input flex-shrink-0" ${item.concluido ? 'checked' : ''} onchange="toggleCheck(${item.id}, this)">
+    <span class="checklist-label" style="font-size:13px;flex:1;${item.concluido ? 'text-decoration:line-through;color:var(--text-light);' : ''}">${escapeHtml(item.descricao)}</span>
+    <button type="button" class="btn btn-link p-0 ms-auto checklist-edit-btn" title="Editar" style="font-size:12px;color:var(--primary);" onclick="startEditCheck(${item.id}, this)"><i class="bi bi-pencil"></i></button>
+    <button type="button" class="btn-close" style="font-size:9px;" onclick="deleteCheck(${item.id}, this.closest('.checklist-item'))"></button>
   `;
   container.appendChild(div);
+}
+
+function escapeHtml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function startEditCheck(id, btn) {
+  var item = btn.closest('.checklist-item');
+  var label = item.querySelector('.checklist-label');
+  var currentText = label.textContent;
+  var input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'form-control form-control-sm flex-1';
+  input.style.flex = '1';
+  input.value = currentText;
+  label.replaceWith(input);
+  btn.style.display = 'none';
+  input.focus();
+  input.select();
+
+  function saveEdit() {
+    var newText = input.value.trim();
+    if (!newText || newText === currentText) {
+      cancelEdit();
+      return;
+    }
+    apiFetch('/api/checklist/' + id + '/update', { method: 'POST', body: { descricao: newText } })
+      .then(function(r) {
+        if (r.success) {
+          var newLabel = document.createElement('span');
+          newLabel.className = 'checklist-label';
+          newLabel.style.cssText = 'font-size:13px;flex:1;' + (item.querySelector('.form-check-input').checked ? 'text-decoration:line-through;color:var(--text-light);' : '');
+          newLabel.textContent = newText;
+          input.replaceWith(newLabel);
+          btn.style.display = '';
+        } else { cancelEdit(); }
+      })
+      .catch(cancelEdit);
+  }
+
+  function cancelEdit() {
+    var newLabel = document.createElement('span');
+    newLabel.className = 'checklist-label';
+    newLabel.style.cssText = 'font-size:13px;flex:1;' + (item.querySelector('.form-check-input').checked ? 'text-decoration:line-through;color:var(--text-light);' : '');
+    newLabel.textContent = currentText;
+    input.replaceWith(newLabel);
+    btn.style.display = '';
+  }
+
+  input.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') { e.preventDefault(); saveEdit(); }
+    if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); }
+  });
+  input.addEventListener('blur', saveEdit);
 }
 
 function addCheckItem() {
@@ -362,6 +451,7 @@ function addCheckItem() {
       if (r.success) {
         renderCheckItem(document.getElementById('checklistItems'), { id: r.id, descricao: desc, concluido: 0 });
         input.value = '';
+        initChecklistSortable(tarefaId);
       }
     });
 }

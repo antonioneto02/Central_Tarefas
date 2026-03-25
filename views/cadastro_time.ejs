@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Membros do Time — Central de Tarefas</title>
+  <%- include('System/headIncludes.ejs') %>
+</head>
+<body>
+<div class="layout-container">
+  <%- include('partials/sidebar.ejs') %>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="page-info">
+          <h1><i class="bi bi-people-fill" style="color:var(--primary);"></i>
+            <% if (selectedTime) { %>
+              <%= selectedTime.nome %>
+            <% } else { %>
+              Membros do Time
+            <% } %>
+          </h1>
+          <p>
+            <a href="/times" style="color:var(--primary);text-decoration:none;font-size:13px;">
+              <i class="bi bi-arrow-left me-1"></i>Voltar para Times
+            </a>
+            <% if (selectedTime && selectedTime.codigo) { %>
+              <span style="margin-left:12px;color:var(--text-light);font-size:12px;">
+                <i class="bi bi-hash"></i> <%= selectedTime.codigo %>
+              </span>
+            <% } %>
+          </p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <%- include('partials/userMenu.ejs') %>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="card mb-3">
+        <div class="card-header">
+          <span><i class="bi bi-person-plus me-2"></i>Adicionar Membro</span>
+        </div>
+        <div class="card-body" style="padding:16px;">
+
+          <div class="d-flex gap-2 mb-3">
+            <input type="text" id="inputNome" class="form-control form-control-sm"
+                   placeholder="Digite o nome ou código para buscar..."
+                   style="max-width:400px;">
+            <button class="btn btn-primary btn-sm" id="btnBuscar">
+              <i class="bi bi-search me-1"></i> Buscar
+            </button>
+          </div>
+
+          <div id="loadingMsg" style="display:none;color:var(--text-light);font-size:13px;padding:8px 0;">
+            <i class="bi bi-hourglass-split"></i> Buscando...
+          </div>
+
+          <div id="buscaSection" style="display:none;">
+            <div class="text-muted mb-2" style="font-size:12px;">
+              <span id="countTotal">0</span> resultado(s) encontrado(s)
+            </div>
+            <div style="max-height:320px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;">
+              <table class="table table-sm table-hover mb-0" id="tabelaBusca" style="font-size:12px;">
+                <thead id="theadBusca" style="position:sticky;top:0;background:var(--light);z-index:1;"></thead>
+                <tbody id="tbodyBusca"></tbody>
+              </table>
+            </div>
+            <div id="semResultados" class="text-muted text-center" style="display:none;padding:24px 0;">
+              <i class="bi bi-search" style="font-size:24px;display:block;margin-bottom:8px;"></i>
+              Nenhum resultado encontrado.
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-people me-2"></i>Membros</span>
+          <span class="badge" id="badgeMembros"
+                style="background:var(--primary-light);color:var(--primary);font-size:12px;padding:4px 10px;border-radius:20px;">
+            <%= membros.length %> membro<%= membros.length !== 1 ? 's' : '' %>
+          </span>
+        </div>
+        <div class="card-body" style="padding:0;">
+          <% if (membros.length === 0) { %>
+            <div id="membrosVazio" class="text-center text-muted" style="padding:40px 20px;">
+              <i class="bi bi-person-plus" style="font-size:32px;display:block;margin-bottom:8px;"></i>
+              <p style="margin:0;font-size:14px;">Nenhum membro ainda</p>
+              <p style="margin:4px 0 0;font-size:12px;">Use a busca acima para adicionar membros</p>
+            </div>
+          <% } else { %>
+            <div id="membrosVazio" style="display:none;"></div>
+          <% } %>
+          <div class="table-responsive" id="membrosTableWrap" style="<%= membros.length === 0 ? 'display:none;' : '' %>">
+            <table class="table table-sm table-hover mb-0" style="font-size:13px;">
+              <thead style="background:var(--light);">
+                <tr>
+                  <th style="padding:10px 16px;">Nome</th>
+                  <th style="padding:10px 16px;">Código</th>
+                  <th style="padding:10px 16px;">Grupo</th>
+                  <th style="padding:10px 16px;">Adicionado em</th>
+                  <th style="padding:10px 16px;width:60px;"></th>
+                </tr>
+              </thead>
+              <tbody id="tbodyMembros">
+                <% membros.forEach(function(m) { %>
+                <tr data-id="<%= m.id %>">
+                  <td style="padding:10px 16px;">
+                    <div class="d-flex align-items-center gap-2">
+                      <div style="width:30px;height:30px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">
+                        <%= (m.nome||'?').charAt(0).toUpperCase() %>
+                      </div>
+                      <span style="font-weight:500;"><%= m.nome %></span>
+                    </div>
+                  </td>
+                  <td style="padding:10px 16px;color:var(--text-light);"><%= m.codigo || '—' %></td>
+                  <td style="padding:10px 16px;">
+                    <% if (m.grupo) { %>
+                      <span style="background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;"><%= m.grupo %></span>
+                    <% } else { %><span style="color:var(--text-light);">—</span><% } %>
+                  </td>
+                  <td style="padding:10px 16px;color:var(--text-light);font-size:12px;">
+                    <%= m.data_cadastro ? new Date(m.data_cadastro).toLocaleDateString('pt-BR') : '—' %>
+                  </td>
+                  <td style="padding:10px 16px;">
+                    <button class="btn btn-sm btn-icon-sm btn-danger btnRemover" data-id="<%= m.id %>" title="Remover">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+                <% }); %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="modalConfirmar" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--primary);color:white;">
+        <h5 class="modal-title"><i class="bi bi-person-plus me-2"></i>Adicionar Membro</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted" style="font-size:12px;margin-bottom:14px;">Confirme ou ajuste os dados antes de salvar.</p>
+        <input type="hidden" id="confUsrId">
+        <input type="hidden" id="confTimeId" value="<%= selectedTime ? selectedTime.id : '' %>">
+        <div class="mb-2">
+          <label class="form-label fw-semibold" style="font-size:12px;">Nome</label>
+          <input type="text" id="confNome" class="form-control form-control-sm">
+        </div>
+        <div class="mb-2">
+          <label class="form-label fw-semibold" style="font-size:12px;">Código</label>
+          <input type="text" id="confCodigo" class="form-control form-control-sm">
+        </div>
+        <div class="mb-0">
+          <label class="form-label fw-semibold" style="font-size:12px;">Grupo</label>
+          <input type="text" id="confGrupo" class="form-control form-control-sm">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnConfirmarAdd">
+          <i class="bi bi-check-lg me-1"></i> Adicionar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('System/bodyIncludes.ejs') %>
+<script>
+(function () {
+  var todosRegistros = [];
+  var todasColunas   = [];
+  var colCodigo = null, colNome = null, colGrupo = null, colUsrId = null;
+  var bsConfirmar = new bootstrap.Modal(document.getElementById('modalConfirmar'));
+
+  function detectar(colunas, keywords) {
+    for (var i = 0; i < keywords.length; i++) {
+      var kw = keywords[i].toUpperCase();
+      for (var j = 0; j < colunas.length; j++) {
+        if (colunas[j].toUpperCase().indexOf(kw) !== -1) return colunas[j];
+      }
+    }
+    return null;
+  }
+
+  function val(row, col) {
+    if (!col || row[col] == null) return '';
+    return String(row[col]).trim();
+  }
+
+  function executarBusca() {
+    var nome = document.getElementById('inputNome').value.trim();
+    document.getElementById('loadingMsg').style.display   = 'block';
+    document.getElementById('buscaSection').style.display = 'none';
+
+    fetch('/api/time/buscar?nome=' + encodeURIComponent(nome))
+      .then(function (r) { return r.json(); })
+      .then(function (json) {
+        document.getElementById('loadingMsg').style.display = 'none';
+        if (!json.success) { showToast('Erro: ' + json.message, 'error'); return; }
+        todosRegistros = json.data    || [];
+        todasColunas   = json.colunas || [];
+        colCodigo = detectar(todasColunas, ['CODUSR','COD_USR','CODIGO','USR_COD','USR_CODIGO','_USR','_COD']);
+        colNome   = detectar(todasColunas, ['NOME','NAME','_NOM','USR_NOME']);
+        colGrupo  = detectar(todasColunas, ['GRUPO','GRP','_GRP','_GRU','CARGO','USR_CARGO']);
+        colUsrId  = detectar(todasColunas, ['USR_ID','USRUD','USRID','ID','USR_UUID']);
+        document.getElementById('countTotal').textContent = todosRegistros.length;
+        document.getElementById('buscaSection').style.display = 'block';
+        if (todosRegistros.length === 0) {
+          document.getElementById('semResultados').style.display = 'block';
+          document.getElementById('tabelaBusca').style.display   = 'none';
+          return;
+        }
+
+        construirCabecalho(todasColunas);
+        renderLinhas(todosRegistros);
+      })
+      .catch(function () {
+        document.getElementById('loadingMsg').style.display = 'none';
+        showToast('Erro ao buscar usuários.', 'error');
+      });
+  }
+
+  document.getElementById('btnBuscar').addEventListener('click', executarBusca);
+  document.getElementById('inputNome').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') executarBusca();
+  });
+  function construirCabecalho(colunas) {
+    var thead = document.getElementById('theadBusca');
+    var tr    = document.createElement('tr');
+    colunas.forEach(function (col) {
+      var th = document.createElement('th');
+      th.textContent = col;
+      th.style.whiteSpace = 'nowrap';
+      th.style.fontSize   = '11px';
+      th.style.padding    = '8px 12px';
+      if (col === colCodigo || col === colNome || col === colGrupo) {
+        th.style.color = 'var(--primary)';
+      }
+      tr.appendChild(th);
+    });
+    var th = document.createElement('th');
+    th.style.width = '50px';
+    tr.appendChild(th);
+    thead.innerHTML = '';
+    thead.appendChild(tr);
+  }
+
+  function renderLinhas(registros) {
+    var tbody = document.getElementById('tbodyBusca');
+    tbody.innerHTML = '';
+
+    if (registros.length === 0) {
+      document.getElementById('semResultados').style.display = 'block';
+      document.getElementById('tabelaBusca').style.display   = 'none';
+      return;
+    }
+    document.getElementById('semResultados').style.display = 'none';
+    document.getElementById('tabelaBusca').style.display   = '';
+    registros.forEach(function (row) {
+      var tr = document.createElement('tr');
+      todasColunas.forEach(function (col) {
+        var td = document.createElement('td');
+        td.textContent    = row[col] != null ? String(row[col]).trim() : '';
+        td.style.maxWidth = '180px';
+        td.style.overflow = 'hidden';
+        td.style.textOverflow = 'ellipsis';
+        td.style.whiteSpace   = 'nowrap';
+        td.style.padding      = '7px 12px';
+        tr.appendChild(td);
+      });
+      var tdBtn = document.createElement('td');
+      tdBtn.style.padding = '7px 12px';
+      var btn   = document.createElement('button');
+      btn.className = 'btn btn-primary btn-sm btn-icon-sm';
+      btn.title     = 'Adicionar ao time';
+      btn.innerHTML = '<i class="bi bi-plus-lg"></i>';
+      btn.addEventListener('click', function () {
+        document.getElementById('confCodigo').value = val(row, colUsrId) || val(row, colCodigo);
+        document.getElementById('confNome').value   = val(row, colNome);
+        document.getElementById('confGrupo').value  = val(row, colGrupo);
+        document.getElementById('confUsrId').value  = val(row, colUsrId);
+        bsConfirmar.show();
+      });
+      tdBtn.appendChild(btn);
+      tr.appendChild(tdBtn);
+      tbody.appendChild(tr);
+    });
+  }
+
+  document.getElementById('btnConfirmarAdd').addEventListener('click', async function () {
+    var codigo = document.getElementById('confCodigo').value.trim();
+    var nome   = document.getElementById('confNome').value.trim();
+    var grupo  = document.getElementById('confGrupo').value.trim();
+    var timeId = document.getElementById('confTimeId').value || null;
+    var usrId  = document.getElementById('confUsrId').value.trim();
+
+    if (!nome) { showToast('Nome é obrigatório.', 'error'); return; }
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    try {
+      var res  = await fetch('/api/time/membros', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ codigo: codigo, nome: nome, grupo: grupo, usrId: usrId, timeId: timeId }),
+      });
+      var json = await res.json();
+      if (!json.success) {
+        showToast('Erro: ' + (json.message || 'Falha ao adicionar'), 'error');
+        this.disabled = false;
+        this.innerHTML = '<i class="bi bi-check-lg me-1"></i> Adicionar';
+        return;
+      }
+
+      bsConfirmar.hide();
+      showToast(nome + ' adicionado(a) ao time!', 'success');
+      document.getElementById('membrosVazio').style.display = 'none';
+      document.getElementById('membrosTableWrap').style.display = '';
+
+      var hoje = new Date().toLocaleDateString('pt-BR');
+      var inicial = (nome || '?').charAt(0).toUpperCase();
+      var tr = document.createElement('tr');
+      tr.dataset.id = json.id;
+      tr.innerHTML =
+        '<td style="padding:10px 16px;"><div class="d-flex align-items-center gap-2">' +
+        '<div style="width:30px;height:30px;border-radius:50%;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">' + esc(inicial) + '</div>' +
+        '<span style="font-weight:500;">' + esc(nome) + '</span></div></td>' +
+        '<td style="padding:10px 16px;color:var(--text-light);">' + esc(codigo || '—') + '</td>' +
+        '<td style="padding:10px 16px;">' + (grupo ? '<span style="background:var(--primary-light);color:var(--primary);padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">' + esc(grupo) + '</span>' : '<span style="color:var(--text-light);">—</span>') + '</td>' +
+        '<td style="padding:10px 16px;color:var(--text-light);font-size:12px;">' + hoje + '</td>' +
+        '<td style="padding:10px 16px;"><button class="btn btn-sm btn-icon-sm btn-danger btnRemover" data-id="' + json.id + '" title="Remover"><i class="bi bi-trash"></i></button></td>';
+      document.getElementById('tbodyMembros').appendChild(tr);
+      atualizarBadge();
+
+      this.disabled = false;
+      this.innerHTML = '<i class="bi bi-check-lg me-1"></i> Adicionar';
+    } catch (e) {
+      showToast('Erro de conexão.', 'error');
+      this.disabled = false;
+      this.innerHTML = '<i class="bi bi-check-lg me-1"></i> Adicionar';
+    }
+  });
+
+  document.getElementById('tbodyMembros').addEventListener('click', async function (e) {
+    var btn = e.target.closest('.btnRemover');
+    if (!btn) return;
+    if (!confirm('Remover este membro do time?')) return;
+    var id = btn.dataset.id;
+    btn.disabled = true;
+    try {
+      var res  = await fetch('/api/time/membros/' + id + '/delete', { method: 'POST' });
+      var json = await res.json();
+      if (!json.success) { showToast('Erro: ' + json.message, 'error'); btn.disabled = false; return; }
+      var tr = btn.closest('tr');
+      if (tr) { tr.style.opacity = '0'; tr.style.transition = 'opacity 0.3s'; setTimeout(function () { tr.remove(); verificarVazio(); }, 300); }
+      atualizarBadge();
+    } catch (_) { showToast('Erro ao remover.', 'error'); btn.disabled = false; }
+  });
+
+  function verificarVazio() {
+    var rows = document.getElementById('tbodyMembros').querySelectorAll('tr').length;
+    if (rows === 0) {
+      document.getElementById('membrosVazio').style.display = '';
+      document.getElementById('membrosTableWrap').style.display = 'none';
+    }
+  }
+
+  function atualizarBadge() {
+    var count = document.getElementById('tbodyMembros').querySelectorAll('tr').length;
+    document.getElementById('badgeMembros').textContent = count + ' membro' + (count !== 1 ? 's' : '');
+  }
+
+  function esc(str) {
+    return String(str || '')
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+})();
+</script>
+</body>
+</html>

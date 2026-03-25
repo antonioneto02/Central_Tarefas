@@ -48,6 +48,25 @@
       <div id="newNoteExpanded" class="note-new-expanded hidden">
         <input type="text" class="note-new-title" id="newNoteTitle" placeholder="Título">
         <textarea class="note-new-content" id="newNoteContent" placeholder="Fazer uma anotação..."></textarea>
+        <div style="padding:4px 16px 6px;">
+          <div class="d-flex align-items-center gap-2" style="flex-wrap:wrap;">
+            <label style="font-size:12px;color:var(--text-light);white-space:nowrap;">Visível para:</label>
+            <select id="newNoteVis" class="form-select form-select-sm" style="width:auto;font-size:12px;">
+              <option value="privado">Só eu</option>
+              <option value="usuario">Pessoa específica</option>
+            </select>
+          </div>
+          <div id="newPessoaSection" style="display:none;margin-top:6px;position:relative;">
+            <div id="newPessoaChip" style="display:none;align-items:center;gap:6px;background:var(--primary-light);color:var(--primary);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;width:fit-content;">
+              <span id="newPessoaChipNome"></span>
+              <button type="button" onclick="limparPessoa('new')" style="background:none;border:none;color:var(--primary);cursor:pointer;padding:0;font-size:14px;line-height:1;">&times;</button>
+            </div>
+            <input type="hidden" id="newNotePessoa">
+            <input type="text" id="newPessoaInput" class="form-control form-control-sm"
+                   placeholder="Buscar usuário pelo nome..." style="font-size:12px;" autocomplete="off">
+            <div id="newPessoaSugestoes" style="display:none;position:absolute;z-index:999;background:#fff;border:1px solid var(--border);border-radius:8px;width:100%;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1);top:calc(100% + 4px);"></div>
+          </div>
+        </div>
         <div class="note-new-toolbar">
           <div class="color-picker" id="colorPicker">
             <span class="color-picker-dot cp-default  selected" data-color="default"  title="Padrão"></span>
@@ -118,6 +137,25 @@
         <input type="hidden" id="editNotaId">
         <input type="text" class="note-new-title" id="editNotaTitulo" placeholder="Título" style="width:100%;border:none;padding:4px 0;margin-bottom:10px;font-size:16px;font-weight:700;outline:none;">
         <textarea class="note-new-content" id="editNotaConteudo" placeholder="Fazer uma anotação..." style="width:100%;border:none;resize:none;font-size:14px;outline:none;min-height:120px;"></textarea>
+        <div style="margin:6px 0;">
+          <div class="d-flex align-items-center gap-2" style="flex-wrap:wrap;">
+            <label style="font-size:12px;color:var(--text-light);white-space:nowrap;">Visível para:</label>
+            <select id="editNoteVis" class="form-select form-select-sm" style="width:auto;font-size:12px;">
+              <option value="privado">Só eu</option>
+              <option value="usuario">Pessoa específica</option>
+            </select>
+          </div>
+          <div id="editPessoaSection" style="display:none;margin-top:6px;position:relative;">
+            <div id="editPessoaChip" style="display:none;align-items:center;gap:6px;background:var(--primary-light);color:var(--primary);border-radius:20px;padding:3px 10px;font-size:12px;font-weight:600;width:fit-content;">
+              <span id="editPessoaChipNome"></span>
+              <button type="button" onclick="limparPessoa('edit')" style="background:none;border:none;color:var(--primary);cursor:pointer;padding:0;font-size:14px;line-height:1;">&times;</button>
+            </div>
+            <input type="hidden" id="editNotePessoa">
+            <input type="text" id="editPessoaInput" class="form-control form-control-sm"
+                   placeholder="Buscar usuário pelo nome..." style="font-size:12px;" autocomplete="off">
+            <div id="editPessoaSugestoes" style="display:none;position:absolute;z-index:999;background:#fff;border:1px solid var(--border);border-radius:8px;width:100%;max-height:180px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1);top:calc(100% + 4px);"></div>
+          </div>
+        </div>
         <div class="note-new-toolbar" style="padding:8px 0 0;border-top:1px solid var(--gray);">
           <div class="color-picker" id="editColorPicker">
             <span class="color-picker-dot cp-default"  data-color="default"  title="Padrão"></span>
@@ -156,6 +194,132 @@
 var newColor = 'default';
 var editColor = 'default';
 var bsEditModal = new bootstrap.Modal(document.getElementById('modalEditarNota'));
+function carregarGruposNota() {
+  apiFetch('/api/anotacoes/grupos').then(function(r) {
+    if (!r.success || !r.data || r.data.length === 0) return;
+    var times = r.data;
+    [document.getElementById('newNoteVis'), document.getElementById('editNoteVis')].forEach(function(sel) {
+      if (!sel) return;
+      // Insere antes da opção "Pessoa específica"
+      var pessoaOpt = sel.querySelector('option[value="usuario"]');
+      times.forEach(function(t) {
+        var opt = document.createElement('option');
+        opt.value = 'grupo:' + t.nome;
+        opt.textContent = 'Time: ' + t.nome;
+        sel.insertBefore(opt, pessoaOpt);
+      });
+    });
+  });
+}
+carregarGruposNota();
+
+// Mostrar/ocultar seção de pessoa e busca com sugestões
+function setupPessoaBusca(prefix) {
+  var selId      = prefix + 'NoteVis';
+  var sectionId  = prefix + 'PessoaSection';
+  var inputId    = prefix + 'PessoaInput';
+  var hiddenId   = prefix + 'NotePessoa';
+  var sugestoesId = prefix + 'PessoaSugestoes';
+  var chipId     = prefix + 'PessoaChip';
+  var chipNomeId = prefix + 'PessoaChipNome';
+
+  document.getElementById(selId).addEventListener('change', function() {
+    var section = document.getElementById(sectionId);
+    if (this.value === 'usuario') {
+      section.style.display = '';
+      document.getElementById(inputId).focus();
+    } else {
+      section.style.display = 'none';
+      document.getElementById(hiddenId).value = '';
+      limparPessoa(prefix === 'new' ? 'new' : 'edit');
+    }
+  });
+
+  var timer = null;
+  document.getElementById(inputId).addEventListener('input', function() {
+    clearTimeout(timer);
+    var q = this.value.trim();
+    if (!q) { document.getElementById(sugestoesId).style.display = 'none'; return; }
+    timer = setTimeout(function() {
+      fetch('/api/time/buscar?nome=' + encodeURIComponent(q))
+        .then(function(r) { return r.json(); })
+        .then(function(json) {
+          if (!json.success || !json.data || !json.data.length) {
+            document.getElementById(sugestoesId).style.display = 'none'; return;
+          }
+          var colunas   = json.colunas || [];
+          var colCodigo = detectarCol(colunas, ['CODUSR','COD_USR','CODIGO','USR_COD','USR_CODIGO']);
+          var colNome   = detectarCol(colunas, ['USR_NOME','NOME','NAME']);
+          var box = document.getElementById(sugestoesId);
+          box.innerHTML = '';
+          json.data.slice(0, 10).forEach(function(row) {
+            var nome   = colNome   ? (row[colNome]   || '') : '';
+            var codigo = colCodigo ? (row[colCodigo] || '') : '';
+            var item = document.createElement('div');
+            item.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:12px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--gray);';
+            item.innerHTML =
+              '<span style="width:26px;height:26px;background:var(--primary);color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0;">' +
+              (nome.charAt(0).toUpperCase() || '?') + '</span>' +
+              '<span style="flex:1;">' + escHtml(nome) + '</span>' +
+              '<span style="color:var(--text-light);font-size:11px;">' + escHtml(codigo) + '</span>';
+            item.addEventListener('mouseover',  function() { this.style.background = 'var(--light)'; });
+            item.addEventListener('mouseout',   function() { this.style.background = ''; });
+            item.addEventListener('mousedown',  function(e) {
+              e.preventDefault();
+              selecionarPessoa(prefix === 'new' ? 'new' : 'edit', codigo || nome, nome);
+            });
+            box.appendChild(item);
+          });
+          box.style.display = 'block';
+        }).catch(function() {});
+    }, 250);
+  });
+
+  document.getElementById(inputId).addEventListener('blur', function() {
+    setTimeout(function() { document.getElementById(sugestoesId).style.display = 'none'; }, 200);
+  });
+}
+
+function detectarCol(colunas, kws) {
+  for (var i = 0; i < kws.length; i++) {
+    for (var j = 0; j < colunas.length; j++) {
+      if (colunas[j].toUpperCase().indexOf(kws[i].toUpperCase()) !== -1) return colunas[j];
+    }
+  }
+  return colunas[0] || null;
+}
+
+function selecionarPessoa(ctx, codigo, nome) {
+  var prefix     = ctx === 'new' ? 'new' : 'edit';
+  var hiddenId   = prefix + 'NotePessoa';
+  var inputId    = prefix + 'PessoaInput';
+  var sugestoesId = prefix + 'PessoaSugestoes';
+  var chipId     = prefix + 'PessoaChip';
+  var chipNomeId = prefix + 'PessoaChipNome';
+  document.getElementById(hiddenId).value        = codigo;
+  document.getElementById(chipNomeId).textContent = nome + (codigo && codigo !== nome ? ' (' + codigo + ')' : '');
+  document.getElementById(chipId).style.display  = 'flex';
+  document.getElementById(inputId).style.display = 'none';
+  document.getElementById(sugestoesId).style.display = 'none';
+}
+
+function limparPessoa(ctx) {
+  var prefix     = ctx === 'new' ? 'new' : 'edit';
+  var hiddenId   = prefix + 'NotePessoa';
+  var inputId    = prefix + 'PessoaInput';
+  var chipId     = prefix + 'PessoaChip';
+  document.getElementById(hiddenId).value        = '';
+  document.getElementById(inputId).value         = '';
+  document.getElementById(inputId).style.display = '';
+  document.getElementById(chipId).style.display  = 'none';
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+setupPessoaBusca('new');
+setupPessoaBusca('edit');
 
 document.getElementById('newNotePlaceholder').addEventListener('click', function() {
   this.style.display = 'none';
@@ -181,14 +345,30 @@ document.getElementById('btnSalvarNota').addEventListener('click', function() {
   saveNewNota(true);
 });
 
+function parseVisibilidade(val, pessoaVal) {
+  if (!val || val === 'privado') return { visibilidade: 'privado', grupo_acesso: null };
+  if (val === 'usuario') {
+    var pessoa = (pessoaVal || '').trim();
+    if (!pessoa) return { visibilidade: 'privado', grupo_acesso: null };
+    return { visibilidade: 'usuario', grupo_acesso: pessoa };
+  }
+  if (val.startsWith('grupo:')) return { visibilidade: 'grupo', grupo_acesso: val.replace('grupo:', '') };
+  return { visibilidade: 'privado', grupo_acesso: null };
+}
+
 function saveNewNota(forceSave) {
   var titulo   = (document.getElementById('newNoteTitle').value || '').trim();
   var conteudo = (document.getElementById('newNoteContent').value || '').trim();
   if (!titulo && !conteudo && !forceSave) { cancelNota(); return; }
   if (!titulo && !conteudo) { cancelNota(); return; }
 
-  apiFetch('/api/anotacoes', { method: 'POST', body: { titulo: titulo, conteudo: conteudo, cor: newColor } })
-    .then(function(r) {
+  var visRaw = (document.getElementById('newNoteVis').value || 'privado');
+  var vis = parseVisibilidade(visRaw, document.getElementById('newNotePessoa').value);
+
+  apiFetch('/api/anotacoes', { method: 'POST', body: {
+    titulo: titulo, conteudo: conteudo, cor: newColor,
+    visibilidade: vis.visibilidade, grupo_acesso: vis.grupo_acesso
+  }}).then(function(r) {
       if (r.success) {
         cancelNota();
         showToast('Anotação criada!', 'success');
@@ -232,13 +412,29 @@ function editarNota(id) {
   apiFetch('/api/anotacoes/' + id).then(function(r) {
     if (!r.success || !r.data) return;
     var n = r.data;
-    document.getElementById('editNotaId').value    = id;
-    document.getElementById('editNotaTitulo').value  = n.titulo || '';
+    document.getElementById('editNotaId').value       = id;
+    document.getElementById('editNotaTitulo').value   = n.titulo || '';
     document.getElementById('editNotaConteudo').value = n.conteudo || '';
     editColor = n.cor || 'default';
     document.querySelectorAll('#editColorPicker .color-picker-dot').forEach(function(d) {
       d.classList.toggle('selected', d.dataset.color === editColor);
     });
+    var editVisSel = document.getElementById('editNoteVis');
+    if (editVisSel) {
+      var vis   = n.visibilidade || 'privado';
+      var grupo = n.grupo_acesso || null;
+      if (vis === 'grupo' && grupo) {
+        editVisSel.value = 'grupo:' + grupo;
+        editPessoa.style.display = 'none';
+      } else if (vis === 'usuario' && grupo) {
+        editVisSel.value = 'usuario';
+        document.getElementById('editPessoaSection').style.display = '';
+        selecionarPessoa('edit', grupo, grupo);
+      } else {
+        editVisSel.value = 'privado';
+        document.getElementById('editPessoaSection').style.display = 'none';
+      }
+    }
     var mc = document.getElementById('modalNotaCard');
     mc.className = 'modal-content note-color-' + editColor;
     mc.style.border = 'none';
@@ -250,9 +446,12 @@ document.getElementById('btnSalvarEdicao').addEventListener('click', function() 
   var id       = document.getElementById('editNotaId').value;
   var titulo   = document.getElementById('editNotaTitulo').value.trim();
   var conteudo = document.getElementById('editNotaConteudo').value.trim();
+  var visRaw   = (document.getElementById('editNoteVis').value || 'privado');
+  var vis      = parseVisibilidade(visRaw, document.getElementById('editNotePessoa').value);
   apiFetch('/api/anotacoes/' + id + '/update', {
     method: 'POST',
-    body: { titulo: titulo, conteudo: conteudo, cor: editColor }
+    body: { titulo: titulo, conteudo: conteudo, cor: editColor,
+            visibilidade: vis.visibilidade, grupo_acesso: vis.grupo_acesso }
   }).then(function(r) {
     if (r.success) {
       bsEditModal.hide();

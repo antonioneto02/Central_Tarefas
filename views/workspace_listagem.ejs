@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= workspace.nome %> — Listagem — Central de Tarefas</title>
+  <%- include('System/headIncludes.ejs') %>
+</head>
+<body>
+<div class="layout-container">
+  <%- include('partials/sidebar.ejs') %>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="page-info">
+          <h1>
+            <a href="/workspaces" style="color:var(--text-light);font-size:14px;font-weight:400;text-decoration:none;margin-right:8px;">
+              <i class="bi bi-arrow-left"></i> Workspaces
+            </a>
+            <i class="bi bi-list-check" style="color:var(--primary);"></i> <%= workspace.nome %>
+            <%
+              var badgeColor = permissao === 'owner' ? '#2563eb' : permissao === 'editor' ? '#059669' : '#6b7280';
+              var badgeBg    = permissao === 'owner' ? '#eff6ff' : permissao === 'editor' ? '#f0fdf4' : '#f3f4f6';
+              var badgeLabel = permissao === 'owner' ? 'Proprietário' : permissao === 'editor' ? 'Editor' : 'Visualizador';
+            %>
+            <span class="badge ms-2" style="background:<%= badgeBg %>;color:<%= badgeColor %>;font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;">
+              <%= badgeLabel %>
+            </span>
+          </h1>
+          <% if (workspace.descricao) { %>
+            <p style="margin:0;font-size:13px;color:var(--text-light);"><%= workspace.descricao %></p>
+          <% } %>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <% if (permissao === 'owner' || permissao === 'editor') { %>
+          <button class="btn btn-primary btn-sm" id="btnNovaTarefa">
+            <i class="bi bi-plus-lg"></i> Nova Tarefa
+          </button>
+        <% } %>
+        <%- include('partials/userMenu.ejs') %>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Stats -->
+      <div class="widgets-grid">
+        <div class="widget">
+          <div class="widget-content"><h3><%= stats.total || 0 %></h3><p>Total</p></div>
+          <div class="widget-icon primary"><i class="bi bi-list-check"></i></div>
+        </div>
+        <div class="widget">
+          <div class="widget-content"><h3><%= stats.concluidas || 0 %></h3><p>Concluídas</p></div>
+          <div class="widget-icon success"><i class="bi bi-check-circle"></i></div>
+        </div>
+        <div class="widget">
+          <div class="widget-content"><h3><%= stats.em_andamento || 0 %></h3><p>Em Andamento</p></div>
+          <div class="widget-icon warning"><i class="bi bi-arrow-repeat"></i></div>
+        </div>
+        <div class="widget">
+          <div class="widget-content"><h3><%= stats.atrasadas || 0 %></h3><p>Atrasadas</p></div>
+          <div class="widget-icon danger"><i class="bi bi-exclamation-triangle"></i></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-table me-2"></i>Tarefas de <%= workspace.nome %></span>
+          <span class="badge badge-primary" id="totalBadge"><%= tarefas.length %> registros</span>
+        </div>
+        <div class="card-body" style="padding:12px;">
+          <div class="d-flex gap-2 mb-3">
+            <input type="search" class="form-control form-control-sm" id="buscaTarefa"
+                   placeholder="Buscar por título, status, coluna..." style="max-width:340px;border-radius:20px;">
+            <button class="btn btn-secondary btn-sm" id="btnLimparBusca">
+              <i class="bi bi-x-circle"></i> Limpar
+            </button>
+          </div>
+
+          <div class="table-responsive">
+            <table id="tabelaTarefas" class="table table-bordered custom-table" style="width:100%">
+              <thead>
+                <tr>
+                  <th style="width:50px;">ID</th>
+                  <th>Título</th>
+                  <th style="width:130px;"><%= hasCustomColunas ? 'Coluna' : 'Status' %></th>
+                  <th style="width:100px;">Prioridade</th>
+                  <th style="width:110px;">Vencimento</th>
+                  <th style="width:100px;">Criado em</th>
+                  <th style="width:80px;">Ações</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyTarefas">
+                <% tarefas.forEach(function(t) { %>
+                  <%
+                    var statusMap = { A_FAZER: 'A Fazer', EM_ANDAMENTO: 'Em Andamento', EM_REVISAO: 'Em Revisão', CONCLUIDO: 'Concluído' };
+                    var colunaLabel = hasCustomColunas
+                      ? (t.coluna_nome || '—')
+                      : (statusMap[t.status] || t.status);
+                    var prioLabel   = t.prioridade || 'MEDIA';
+                    var isOverdue   = t.data_vencimento && t.status !== 'CONCLUIDO' && new Date(t.data_vencimento) < new Date();
+                    var vencimento  = t.data_vencimento ? new Date(t.data_vencimento).toLocaleDateString('pt-BR') : '';
+                    var criacao     = t.data_criacao ? new Date(t.data_criacao).toLocaleDateString('pt-BR') : '';
+                  %>
+                  <tr class="tarefa-row">
+                    <td><%= t.id %></td>
+                    <td><strong><%= t.titulo %></strong>
+                      <% if (t.descricao) { %>
+                        <br><small style="color:var(--text-light);font-size:11px;"><%= t.descricao.length > 80 ? t.descricao.substring(0,80) + '…' : t.descricao %></small>
+                      <% } %>
+                    </td>
+                    <% if (hasCustomColunas) { %>
+                      <td><span style="font-size:12px;padding:3px 8px;border-radius:4px;background:#f3f4f6;color:#374151;display:inline-block;"><%= colunaLabel %></span></td>
+                    <% } else { %>
+                      <td><span class="status-badge <%= t.status.toLowerCase() %>"><%= colunaLabel %></span></td>
+                    <% } %>
+                    <td><span class="priority-badge <%= prioLabel.toLowerCase() %>"><%= prioLabel %></span></td>
+                    <td style="<%= isOverdue ? 'color:var(--danger);font-weight:600;' : '' %>"><%= vencimento || '—' %></td>
+                    <td><%= criacao %></td>
+                    <td style="text-align:center;white-space:nowrap;">
+                      <button type="button" class="btn btn-primary compact-action-btn me-1"
+                              title="Editar" onclick="editarTarefa(<%= t.id %>)">
+                        <i class="bi bi-pencil" style="font-size:11px;line-height:1;display:block;"></i>
+                      </button>
+                      <% if (permissao === 'owner' || permissao === 'editor') { %>
+                        <button type="button" class="btn btn-danger compact-action-btn"
+                                title="Excluir" onclick="excluirTarefa(<%= t.id %>)">
+                          <i class="bi bi-trash" style="font-size:11px;line-height:1;display:block;"></i>
+                        </button>
+                      <% } %>
+                    </td>
+                  </tr>
+                <% }); %>
+                <% if (tarefas.length === 0) { %>
+                  <tr>
+                    <td colspan="7" style="text-align:center;padding:40px;color:var(--text-light);">
+                      <i class="bi bi-inbox" style="font-size:36px;display:block;margin-bottom:10px;"></i>
+                      Nenhuma tarefa neste workspace ainda.
+                    </td>
+                  </tr>
+                <% } %>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="modalTarefa" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--primary);color:white;">
+        <h5 class="modal-title"><span id="modalTarefaTitulo">Tarefa</span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="tarefaId">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">Título *</label>
+            <input type="text" class="form-control" id="fTitulo" placeholder="Descreva a tarefa..." required>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Descrição</label>
+            <textarea class="form-control" id="fDescricao" rows="3"></textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold"><%= hasCustomColunas ? 'Coluna' : 'Status' %></label>
+            <select class="form-select" id="fStatus">
+              <% colunas.forEach(function(col) { %>
+                <option value="<%= col.chave %>"><%= col.nome %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Prioridade</label>
+            <select class="form-select" id="fPrioridade">
+              <option value="ALTA">Alta</option>
+              <option value="MEDIA" selected>Média</option>
+              <option value="BAIXA">Baixa</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Vencimento</label>
+            <input type="date" class="form-control" id="fVencimento">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnSalvarTarefa">
+          <i class="bi bi-check-lg"></i> Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('System/bodyIncludes.ejs') %>
+<style>
+.custom-table, .card-body .custom-table { width:100%;border-radius:0;overflow:hidden;background:white;margin-bottom:0;box-shadow:none; }
+#tabelaTarefas { width:100% !important; }
+#tabelaTarefas thead th, #tabelaTarefas tbody td {
+  padding:6px 8px !important; font-size:13px !important;
+  border:1px solid var(--border); vertical-align:middle !important;
+}
+#tabelaTarefas thead th {
+  background:linear-gradient(135deg, var(--primary) 0%, #1e40af 100%) !important;
+  color:white !important; font-weight:600 !important; text-transform:uppercase !important;
+  font-size:12px !important; letter-spacing:0.5px !important; white-space:nowrap;
+}
+#tabelaTarefas tbody tr:hover { background-color:#f8f9fa !important; }
+#tabelaTarefas tbody tr:nth-child(even) { background-color:#f8f9fa !important; }
+.compact-action-btn {
+  padding:0 !important; height:16px !important; min-height:16px !important;
+  min-width:16px !important; width:16px !important; font-size:0.65rem !important;
+  display:inline-flex !important; align-items:center !important; justify-content:center !important;
+  border-radius:3px !important; box-sizing:border-box !important; line-height:1 !important;
+  vertical-align:middle !important; border-width:1px !important;
+}
+.compact-action-btn i { font-size:12px !important; line-height:1 !important; display:block; margin:0 !important; padding:0 !important; }
+</style>
+<script>
+var WORKSPACE_ID = <%= workspace.id %>;
+var HAS_CUSTOM   = <%= hasCustomColunas ? 'true' : 'false' %>;
+var COLUNAS_DATA = <%- JSON.stringify(colunas) %>;
+var bsModal      = new bootstrap.Modal(document.getElementById('modalTarefa'));
+document.getElementById('buscaTarefa').addEventListener('input', function() {
+  var term = this.value.toLowerCase();
+  document.querySelectorAll('.tarefa-row').forEach(function(row) {
+    var text = row.textContent.toLowerCase();
+    row.style.display = text.includes(term) ? '' : 'none';
+  });
+  atualizarBadge();
+});
+
+document.getElementById('btnLimparBusca').addEventListener('click', function() {
+  document.getElementById('buscaTarefa').value = '';
+  document.querySelectorAll('.tarefa-row').forEach(function(row) { row.style.display = ''; });
+  atualizarBadge();
+});
+
+function atualizarBadge() {
+  var visíveis = document.querySelectorAll('.tarefa-row:not([style*="display: none"])').length;
+  var badge = document.getElementById('totalBadge');
+  if (badge) badge.textContent = visíveis + ' registro' + (visíveis !== 1 ? 's' : '');
+}
+<% if (permissao === 'owner' || permissao === 'editor') { %>
+document.getElementById('btnNovaTarefa').addEventListener('click', function() {
+  clearModal();
+  document.getElementById('modalTarefaTitulo').textContent = 'Nova Tarefa';
+  bsModal.show();
+});
+<% } %>
+
+window.editarTarefa = function(id) {
+  clearModal();
+  document.getElementById('modalTarefaTitulo').textContent = 'Editar Tarefa';
+  document.getElementById('tarefaId').value = id;
+  apiFetch('/api/tarefas/' + id).then(function(r) {
+    if (!r.success || !r.data) return;
+    var t = r.data;
+    document.getElementById('fTitulo').value     = t.titulo || '';
+    document.getElementById('fDescricao').value  = t.descricao || '';
+    document.getElementById('fPrioridade').value = t.prioridade || 'MEDIA';
+    document.getElementById('fVencimento').value = t.data_vencimento ? t.data_vencimento.substring(0,10) : '';
+    if (HAS_CUSTOM) {
+      var chave = t.id_coluna ? 'col_' + t.id_coluna : (COLUNAS_DATA[0] ? COLUNAS_DATA[0].chave : '');
+      document.getElementById('fStatus').value = chave;
+    } else {
+      document.getElementById('fStatus').value = t.status || 'A_FAZER';
+    }
+  });
+  bsModal.show();
+};
+
+window.excluirTarefa = function(id) {
+  if (!confirm('Deseja excluir esta tarefa?')) return;
+  apiFetch('/api/tarefas/' + id + '/delete', { method: 'POST' }).then(function(r) {
+    if (r.success) { showToast('Tarefa excluída!', 'success'); setTimeout(function() { location.reload(); }, 700); }
+    else showToast('Erro ao excluir', 'error');
+  });
+};
+
+function clearModal() {
+  document.getElementById('tarefaId').value    = '';
+  document.getElementById('fTitulo').value     = '';
+  document.getElementById('fDescricao').value  = '';
+  document.getElementById('fStatus').value     = COLUNAS_DATA[0] ? COLUNAS_DATA[0].chave : 'A_FAZER';
+  document.getElementById('fPrioridade').value = 'MEDIA';
+  document.getElementById('fVencimento').value = '';
+}
+
+document.getElementById('btnSalvarTarefa').addEventListener('click', function() {
+  var id     = document.getElementById('tarefaId').value;
+  var titulo = document.getElementById('fTitulo').value.trim();
+  if (!titulo) { showToast('Título é obrigatório', 'error'); return; }
+
+  var chaveSelec = document.getElementById('fStatus').value;
+  var payload = {
+    titulo:          titulo,
+    descricao:       document.getElementById('fDescricao').value,
+    prioridade:      document.getElementById('fPrioridade').value,
+    data_vencimento: document.getElementById('fVencimento').value || null,
+  };
+
+  if (HAS_CUSTOM) {
+    var colObj = COLUNAS_DATA.find(function(c) { return c.chave === chaveSelec; });
+    payload.id_coluna = colObj ? colObj.id : null;
+    payload.status    = 'A_FAZER';
+  } else {
+    payload.status = chaveSelec;
+  }
+
+  var url = id ? '/api/tarefas/' + id + '/update'
+               : '/api/workspaces/' + WORKSPACE_ID + '/tarefas';
+  apiFetch(url, { method: 'POST', body: payload }).then(function(r) {
+    if (r.success) {
+      bsModal.hide();
+      showToast(id ? 'Tarefa atualizada!' : 'Tarefa criada!', 'success');
+      setTimeout(function() { location.reload(); }, 700);
+    } else showToast('Erro ao salvar', 'error');
+  });
+});
+</script>
+</body>
+</html>

@@ -1,9 +1,3 @@
-// ============================================================
-// Central de Tarefas — app.js
-// Utilitários globais do frontend
-// ============================================================
-
-// ----- Toast notifications -----
 function showToast(message, type) {
   type = type || 'info';
   const existing = document.querySelectorAll('.ct-toast');
@@ -21,7 +15,6 @@ function showToast(message, type) {
   }, 3000);
 }
 
-// ----- Date helpers -----
 function todayISO() {
   var d = new Date();
   return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
@@ -41,7 +34,6 @@ function isOverdue(isoDate) {
   return due < today;
 }
 
-// ----- Fetch helper -----
 function apiFetch(url, opts) {
   opts = opts || {};
   opts.credentials = 'same-origin';

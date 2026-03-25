@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title><%= workspace.nome %> — Quadro — Central de Tarefas</title>
+  <%- include('System/headIncludes.ejs') %>
+</head>
+<body>
+<div class="layout-container">
+  <%- include('partials/sidebar.ejs') %>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="page-info">
+          <h1>
+            <a href="/workspaces" style="color:var(--text-light);font-size:14px;font-weight:400;text-decoration:none;margin-right:8px;">
+              <i class="bi bi-arrow-left"></i> Workspaces
+            </a>
+            <i class="bi bi-kanban" style="color:var(--primary);"></i> <%= workspace.nome %>
+            <%
+              var badgeColor = permissao === 'owner' ? '#2563eb' : permissao === 'editor' ? '#059669' : '#6b7280';
+              var badgeBg    = permissao === 'owner' ? '#eff6ff' : permissao === 'editor' ? '#f0fdf4' : '#f3f4f6';
+              var badgeLabel = permissao === 'owner' ? 'Proprietário' : permissao === 'editor' ? 'Editor' : 'Visualizador';
+            %>
+            <span class="badge ms-2" style="background:<%= badgeBg %>;color:<%= badgeColor %>;font-size:11px;font-weight:600;padding:3px 8px;border-radius:4px;">
+              <%= badgeLabel %>
+            </span>
+          </h1>
+          <% if (workspace.descricao) { %>
+            <p style="margin:0;font-size:13px;color:var(--text-light);"><%= workspace.descricao %></p>
+          <% } %>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <% if (permissao === 'owner' || permissao === 'editor') { %>
+          <button class="btn btn-primary btn-sm" id="btnNovaTarefa">
+            <i class="bi bi-plus-lg"></i> Nova Tarefa
+          </button>
+        <% } %>
+        <%- include('partials/userMenu.ejs') %>
+      </div>
+    </div>
+
+    <div class="content" style="padding:20px 24px;">
+      <div class="kanban-board" id="kanbanBoard">
+
+        <% colunas.forEach(function(col) { %>
+        <%
+          var colCards = kanban[col.chave] || [];
+          var dotStyle = 'width:10px;height:10px;border-radius:50%;background:' + (col.cor || '#94a3b8') + ';display:inline-block;margin-right:6px;';
+        %>
+        <div class="kanban-column">
+          <div class="kanban-column-header">
+            <div class="column-header-left">
+              <span style="<%= dotStyle %>"></span>
+              <span class="column-title"><%= col.nome %></span>
+              <span class="column-count" id="count-<%= col.chave %>"><%= colCards.length %></span>
+            </div>
+            <% if (permissao === 'owner' || permissao === 'editor') { %>
+              <button class="btn-add-card" title="Adicionar tarefa"
+                      data-chave="<%= col.chave %>"
+                      data-colid="<%= col.id || '' %>">+</button>
+            <% } %>
+          </div>
+
+          <div class="kanban-cards" id="cards-<%= col.chave %>"
+               data-chave="<%= col.chave %>"
+               data-colid="<%= col.id || '' %>">
+            <% colCards.forEach(function(card) { %>
+              <%
+                var isOverdue = card.data_vencimento && new Date(card.data_vencimento) < new Date();
+                var prio = (card.prioridade || 'MEDIA').toLowerCase();
+              %>
+              <div class="task-card priority-<%= prio %>" data-id="<%= card.id %>"
+                   data-status="<%= card.status %>"
+                   data-colid="<%= card.id_coluna || '' %>">
+                <div class="card-priority-bar"></div>
+                <p class="card-title"><%= card.titulo %></p>
+                <% if (card.descricao) { %>
+                  <p class="card-desc"><%= card.descricao.length > 90 ? card.descricao.substring(0,90) + '…' : card.descricao %></p>
+                <% } %>
+                <% if (card.checklist_total > 0) { %>
+                  <div>
+                    <div class="checklist-bar">
+                      <div class="checklist-progress" style="width:<%= Math.round(card.checklist_done/card.checklist_total*100) %>%"></div>
+                    </div>
+                    <small class="text-muted" style="font-size:10px;"><%= card.checklist_done %>/<%= card.checklist_total %> itens</small>
+                  </div>
+                <% } %>
+                <div class="card-footer-row">
+                  <% if (card.data_vencimento) { %>
+                    <span class="due-date <%= isOverdue ? 'overdue' : '' %>">
+                      <i class="bi bi-calendar3"></i>
+                      <%= new Date(card.data_vencimento).toLocaleDateString('pt-BR') %>
+                    </span>
+                  <% } %>
+                  <span class="priority-badge <%= prio %>" style="margin-left:auto;margin-right:4px;">
+                    <%= card.prioridade %>
+                  </span>
+                  <% if (permissao === 'owner' || permissao === 'editor') { %>
+                    <button class="btn-card-edit" data-id="<%= card.id %>" title="Editar">
+                      <i class="bi bi-pencil"></i>
+                    </button>
+                  <% } %>
+                </div>
+              </div>
+            <% }); %>
+          </div>
+
+          <% if (permissao === 'owner' || permissao === 'editor') { %>
+            <div class="kanban-add-zone" id="addzone-<%= col.chave %>" style="display:none;">
+              <textarea placeholder="Título da tarefa..." rows="2" id="addtxt-<%= col.chave %>"></textarea>
+              <div class="kanban-add-actions">
+                <button class="btn btn-primary btn-sm"
+                        onclick="saveInlineCard('<%= col.chave %>', '<%= col.id || '' %>')">Adicionar</button>
+                <button class="btn btn-secondary btn-sm"
+                        onclick="cancelInlineCard('<%= col.chave %>')">Cancelar</button>
+              </div>
+            </div>
+          <% } %>
+        </div>
+        <% }); %>
+
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="modalTarefa" tabindex="-1" aria-labelledby="modalTarefaLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--primary);color:white;">
+        <h5 class="modal-title" id="modalTarefaLabel">
+          <i class="bi bi-kanban"></i> <span id="modalTarefaTitulo">Nova Tarefa</span>
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="tarefaId" value="">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">Título *</label>
+            <input type="text" class="form-control" id="fTitulo" placeholder="Descreva a tarefa..." required>
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Descrição</label>
+            <textarea class="form-control" id="fDescricao" rows="3" placeholder="Detalhes adicionais..."></textarea>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold"><%= hasCustomColunas ? 'Coluna' : 'Status' %></label>
+            <select class="form-select" id="fStatus">
+              <% colunas.forEach(function(col) { %>
+                <option value="<%= col.chave %>"><%= col.nome %></option>
+              <% }); %>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Prioridade</label>
+            <select class="form-select" id="fPrioridade">
+              <option value="ALTA">Alta</option>
+              <option value="MEDIA" selected>Média</option>
+              <option value="BAIXA">Baixa</option>
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold">Vencimento</label>
+            <input type="date" class="form-control" id="fVencimento">
+          </div>
+          <div class="col-12" id="checklistSection" style="display:none;">
+            <label class="form-label fw-semibold">Checklist</label>
+            <div id="checklistItems" class="mb-2"></div>
+            <div class="d-flex gap-2">
+              <input type="text" class="form-control form-control-sm" id="newCheckItem" placeholder="Novo item...">
+              <button type="button" class="btn btn-outline-primary btn-sm" onclick="addCheckItem()">
+                <i class="bi bi-plus"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-danger btn-sm" id="btnExcluirTarefa" style="display:none;margin-right:auto;">
+          <i class="bi bi-trash"></i> Excluir
+        </button>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnSalvarTarefa">
+          <i class="bi bi-check-lg"></i> Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('System/bodyIncludes.ejs') %>
+<style>
+.checklist-drag-handle { cursor: grab; padding: 0 2px; }
+.checklist-drag-handle:active { cursor: grabbing; }
+.checklist-ghost { opacity: 0.4; background: var(--primary-light, #dbeafe); border-radius: 4px; }
+.checklist-item { border-radius: 4px; padding: 2px 4px; transition: background 0.15s; }
+.checklist-item:hover { background: #f6f8fa; }
+.checklist-edit-btn { opacity: 0; transition: opacity 0.15s; }
+.checklist-item:hover .checklist-edit-btn { opacity: 1; }
+</style>
+<script>
+var WORKSPACE_ID   = <%= workspace.id %>;
+var HAS_CUSTOM     = <%= hasCustomColunas ? 'true' : 'false' %>;
+var COLUNAS_DATA   = <%- JSON.stringify(colunas) %>;
+var CAN_EDIT       = <%= (permissao === 'owner' || permissao === 'editor') ? 'true' : 'false' %>;
+var colChaves = COLUNAS_DATA.map(function(c) { return c.chave; });
+if (CAN_EDIT) {
+  colChaves.forEach(function(chave) {
+    var el = document.getElementById('cards-' + chave);
+    if (!el) return;
+    Sortable.create(el, {
+      group:      'kanban',
+      animation:  150,
+      ghostClass: 'card-ghost',
+      chosenClass:'card-chosen',
+      dragClass:  'card-drag',
+      onEnd: function() {
+        var cards = [];
+        colChaves.forEach(function(ch) {
+          var col = document.getElementById('cards-' + ch);
+          if (!col) return;
+          var colId = col.dataset.colid ? parseInt(col.dataset.colid) : null;
+          Array.from(col.children).forEach(function(el, i) {
+            if (el.dataset && el.dataset.id) {
+              if (HAS_CUSTOM) {
+                cards.push({ id: parseInt(el.dataset.id), posicao: i, id_coluna: colId });
+              } else {
+                cards.push({ id: parseInt(el.dataset.id), posicao: i, status: ch });
+              }
+            }
+          });
+        });
+        updateCounts();
+        apiFetch('/api/workspaces/' + WORKSPACE_ID + '/tarefas/reorder', {
+          method: 'POST', body: { cards: cards }
+        }).then(function(r) {
+          if (!r.success) showToast('Erro ao salvar posição', 'error');
+        }).catch(function() { showToast('Erro de conexão', 'error'); });
+      }
+    });
+  });
+}
+
+function updateCounts() {
+  colChaves.forEach(function(ch) {
+    var col   = document.getElementById('cards-' + ch);
+    var badge = document.getElementById('count-' + ch);
+    if (col && badge) badge.textContent = col.children.length;
+  });
+}
+
+document.querySelectorAll('.btn-add-card').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var chave = btn.dataset.chave;
+    document.querySelectorAll('.kanban-add-zone').forEach(function(z) { z.style.display = 'none'; });
+    var zone = document.getElementById('addzone-' + chave);
+    if (zone) { zone.style.display = 'block'; document.getElementById('addtxt-' + chave).focus(); }
+  });
+});
+
+function saveInlineCard(chave, colId) {
+  var txt = (document.getElementById('addtxt-' + chave) || {}).value;
+  if (!txt || !txt.trim()) return;
+  var body = { titulo: txt.trim() };
+  if (HAS_CUSTOM) {
+    body.id_coluna = colId ? parseInt(colId) : null;
+    body.status    = 'A_FAZER';
+  } else {
+    body.status = chave;
+  }
+  apiFetch('/api/workspaces/' + WORKSPACE_ID + '/tarefas', { method: 'POST', body: body })
+    .then(function(r) {
+      if (r.success) {
+        cancelInlineCard(chave);
+        showToast('Tarefa criada!', 'success');
+        setTimeout(function() { location.reload(); }, 800);
+      } else { showToast('Erro ao criar tarefa', 'error'); }
+    }).catch(function() { showToast('Erro de conexão', 'error'); });
+}
+
+function cancelInlineCard(chave) {
+  var zone = document.getElementById('addzone-' + chave);
+  var txt  = document.getElementById('addtxt-' + chave);
+  if (zone) zone.style.display = 'none';
+  if (txt)  txt.value = '';
+}
+
+var bsModal = new bootstrap.Modal(document.getElementById('modalTarefa'));
+if (CAN_EDIT) {
+  document.getElementById('btnNovaTarefa').addEventListener('click', function() {
+    openModal(null);
+  });
+}
+
+document.querySelectorAll('.btn-card-edit').forEach(function(btn) {
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    openModal(parseInt(btn.dataset.id));
+  });
+});
+
+function openModal(id) {
+  clearModal();
+  if (id) {
+    document.getElementById('modalTarefaTitulo').textContent = 'Editar Tarefa';
+    document.getElementById('btnExcluirTarefa').style.display = 'inline-flex';
+    document.getElementById('checklistSection').style.display = 'block';
+    document.getElementById('tarefaId').value = id;
+    apiFetch('/api/tarefas/' + id).then(function(r) {
+      if (!r.success || !r.data) return;
+      var t = r.data;
+      document.getElementById('fTitulo').value     = t.titulo || '';
+      document.getElementById('fDescricao').value  = t.descricao || '';
+      document.getElementById('fPrioridade').value = t.prioridade || 'MEDIA';
+      document.getElementById('fVencimento').value = t.data_vencimento ? t.data_vencimento.substring(0,10) : '';
+      if (HAS_CUSTOM) {
+        var chaveColuna = t.id_coluna ? 'col_' + t.id_coluna : (COLUNAS_DATA[0] ? COLUNAS_DATA[0].chave : '');
+        document.getElementById('fStatus').value = chaveColuna;
+      } else {
+        document.getElementById('fStatus').value = t.status || 'A_FAZER';
+      }
+      loadChecklist(id);
+    });
+  } else {
+    document.getElementById('modalTarefaTitulo').textContent = 'Nova Tarefa';
+    document.getElementById('btnExcluirTarefa').style.display = 'none';
+    document.getElementById('checklistSection').style.display = 'none';
+  }
+  bsModal.show();
+}
+
+function clearModal() {
+  document.getElementById('tarefaId').value    = '';
+  document.getElementById('fTitulo').value     = '';
+  document.getElementById('fDescricao').value  = '';
+  document.getElementById('fStatus').value     = COLUNAS_DATA[0] ? COLUNAS_DATA[0].chave : 'A_FAZER';
+  document.getElementById('fPrioridade').value = 'MEDIA';
+  document.getElementById('fVencimento').value = '';
+  document.getElementById('checklistItems').innerHTML = '';
+}
+
+document.getElementById('btnSalvarTarefa').addEventListener('click', function() {
+  var id     = document.getElementById('tarefaId').value;
+  var titulo = document.getElementById('fTitulo').value.trim();
+  if (!titulo) { showToast('Título é obrigatório', 'error'); return; }
+
+  var chaveSelec = document.getElementById('fStatus').value;
+  var payload = {
+    titulo:          titulo,
+    descricao:       document.getElementById('fDescricao').value,
+    prioridade:      document.getElementById('fPrioridade').value,
+    data_vencimento: document.getElementById('fVencimento').value || null,
+  };
+
+  if (HAS_CUSTOM) {
+    var colObj = COLUNAS_DATA.find(function(c) { return c.chave === chaveSelec; });
+    payload.id_coluna = colObj ? colObj.id : null;
+    payload.status    = 'A_FAZER';
+  } else {
+    payload.status = chaveSelec;
+  }
+
+  if (id) {
+    apiFetch('/api/tarefas/' + id + '/update', { method: 'POST', body: payload })
+      .then(function(r) {
+        if (r.success) { bsModal.hide(); showToast('Tarefa atualizada!', 'success'); setTimeout(function() { location.reload(); }, 700); }
+        else showToast('Erro ao salvar tarefa', 'error');
+      });
+  } else {
+    apiFetch('/api/workspaces/' + WORKSPACE_ID + '/tarefas', { method: 'POST', body: payload })
+      .then(function(r) {
+        if (r.success) { bsModal.hide(); showToast('Tarefa criada!', 'success'); setTimeout(function() { location.reload(); }, 700); }
+        else showToast('Erro ao criar tarefa', 'error');
+      });
+  }
+});
+
+document.getElementById('btnExcluirTarefa').addEventListener('click', function() {
+  var id = document.getElementById('tarefaId').value;
+  if (!id) return;
+  if (!confirm('Deseja excluir esta tarefa?')) return;
+  apiFetch('/api/tarefas/' + id + '/delete', { method: 'POST' })
+    .then(function(r) {
+      if (r.success) { bsModal.hide(); showToast('Tarefa excluída!', 'success'); setTimeout(function() { location.reload(); }, 700); }
+      else showToast('Erro ao excluir', 'error');
+    });
+});
+
+var checklistSortable = null;
+function loadChecklist(tarefaId) {
+  apiFetch('/api/tarefas/' + tarefaId + '/checklist').then(function(r) {
+    if (!r.success) return;
+    var container = document.getElementById('checklistItems');
+    container.innerHTML = '';
+    r.data.forEach(function(item) { renderCheckItem(container, item); });
+    initChecklistSortable(tarefaId);
+  });
+}
+
+function initChecklistSortable(tarefaId) {
+  var container = document.getElementById('checklistItems');
+  if (checklistSortable) { checklistSortable.destroy(); checklistSortable = null; }
+  checklistSortable = Sortable.create(container, {
+    animation: 150,
+    handle: '.checklist-drag-handle',
+    ghostClass: 'checklist-ghost',
+    onEnd: function() {
+      var items = [];
+      Array.from(container.children).forEach(function(el, i) {
+        if (el.dataset && el.dataset.checkId) items.push({ id: parseInt(el.dataset.checkId), posicao: i });
+      });
+      apiFetch('/api/tarefas/' + tarefaId + '/checklist/reorder', { method: 'POST', body: { items: items } })
+        .catch(function() { showToast('Erro ao salvar ordem', 'error'); });
+    }
+  });
+}
+
+function renderCheckItem(container, item) {
+  var div = document.createElement('div');
+  div.className = 'd-flex align-items-center gap-2 mb-1 checklist-item';
+  div.dataset.checkId = item.id;
+  div.innerHTML = '<span class="checklist-drag-handle" title="Arrastar"><i class="bi bi-grip-vertical" style="font-size:13px;color:#aaa;cursor:grab;"></i></span>' +
+    '<input type="checkbox" class="form-check-input flex-shrink-0" ' + (item.concluido ? 'checked' : '') + ' onchange="toggleCheck(' + item.id + ', this)">' +
+    '<span class="checklist-label" style="font-size:13px;flex:1;' + (item.concluido ? 'text-decoration:line-through;color:var(--text-light);' : '') + '">' + escapeHtml(item.descricao) + '</span>' +
+    '<button type="button" class="btn btn-link p-0 ms-auto checklist-edit-btn" title="Editar" style="font-size:12px;color:var(--primary);" onclick="startEditCheck(' + item.id + ', this)"><i class="bi bi-pencil"></i></button>' +
+    '<button type="button" class="btn-close" style="font-size:9px;" onclick="deleteCheck(' + item.id + ', this.closest(\'.checklist-item\'))"></button>';
+  container.appendChild(div);
+}
+
+function escapeHtml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function startEditCheck(id, btn) {
+  var item = btn.closest('.checklist-item');
+  var label = item.querySelector('.checklist-label');
+  var currentText = label.textContent;
+  var input = document.createElement('input');
+  input.type = 'text'; input.className = 'form-control form-control-sm flex-1'; input.style.flex = '1'; input.value = currentText;
+  label.replaceWith(input); btn.style.display = 'none'; input.focus(); input.select();
+  function saveEdit() {
+    var newText = input.value.trim();
+    if (!newText || newText === currentText) { cancelEdit(); return; }
+    apiFetch('/api/checklist/' + id + '/update', { method: 'POST', body: { descricao: newText } }).then(function(r) {
+      if (r.success) {
+        var nl = document.createElement('span'); nl.className = 'checklist-label';
+        nl.style.cssText = 'font-size:13px;flex:1;' + (item.querySelector('.form-check-input').checked ? 'text-decoration:line-through;color:var(--text-light);' : '');
+        nl.textContent = newText; input.replaceWith(nl); btn.style.display = '';
+      } else cancelEdit();
+    }).catch(cancelEdit);
+  }
+  function cancelEdit() {
+    var nl = document.createElement('span'); nl.className = 'checklist-label';
+    nl.style.cssText = 'font-size:13px;flex:1;' + (item.querySelector('.form-check-input').checked ? 'text-decoration:line-through;color:var(--text-light);' : '');
+    nl.textContent = currentText; input.replaceWith(nl); btn.style.display = '';
+  }
+  input.addEventListener('keydown', function(e) { if (e.key === 'Enter') { e.preventDefault(); saveEdit(); } if (e.key === 'Escape') { e.preventDefault(); cancelEdit(); } });
+  input.addEventListener('blur', saveEdit);
+}
+
+function addCheckItem() {
+  var input = document.getElementById('newCheckItem');
+  var desc  = input.value.trim();
+  if (!desc) return;
+  var tarefaId = document.getElementById('tarefaId').value;
+  if (!tarefaId) return;
+  apiFetch('/api/tarefas/' + tarefaId + '/checklist', { method: 'POST', body: { descricao: desc } }).then(function(r) {
+    if (r.success) { renderCheckItem(document.getElementById('checklistItems'), { id: r.id, descricao: desc, concluido: 0 }); input.value = ''; initChecklistSortable(tarefaId); }
+  });
+}
+
+function toggleCheck(id, checkbox) {
+  apiFetch('/api/checklist/' + id + '/toggle', { method: 'POST' }).then(function(r) {
+    var span = checkbox.nextElementSibling;
+    if (r.concluido) { checkbox.checked = true; span.style.textDecoration = 'line-through'; span.style.color = 'var(--text-light)'; }
+    else { checkbox.checked = false; span.style.textDecoration = ''; span.style.color = ''; }
+  });
+}
+
+function deleteCheck(id, container) {
+  apiFetch('/api/checklist/' + id + '/delete', { method: 'POST' }).then(function(r) { if (r.success && container) container.remove(); });
+}
+
+document.getElementById('newCheckItem').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { e.preventDefault(); addCheckItem(); }
+});
+</script>
+</body>
+</html>

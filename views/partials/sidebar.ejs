@@ -1,7 +1,7 @@
 <aside class="sidebar">
   <div class="sidebar-header">
     <div class="sidebar-logo">
-      <div class="sidebar-logo-badge">CT</div>
+      <img src="/css/logo-cini.png" alt="Logo" style="width:36px;height:36px;object-fit:contain;border-radius:6px;">
     </div>
     <div class="sidebar-title"><span class="title-text">CENTRAL TAREFAS</span></div>
   </div>
@@ -15,18 +15,32 @@
     <hr class="sidebar-divider">
     <div class="nav-section">
       <span class="nav-label nav-text">Tarefas</span>
-      <a class="nav-item <%= currentPath === '/tarefas/quadro' ? 'active' : '' %>" href="/tarefas/quadro">
-        <i class="bi bi-kanban"></i> <span class="nav-text">Quadro de Tarefas</span>
+      <a class="nav-item <%= currentPath === '/workspaces' ? 'active' : '' %>" href="/workspaces">
+        <i class="bi bi-grid-1x2"></i> <span class="nav-text">Workspaces</span>
       </a>
-      <a class="nav-item <%= currentPath === '/tarefas/listagem' ? 'active' : '' %>" href="/tarefas/listagem">
-        <i class="bi bi-list-check"></i> <span class="nav-text">Listagem de Tarefas</span>
+      <% if (locals.currentWorkspace) { %>
+      <a class="nav-item ps-4 <%= currentPath.includes('/quadro') ? 'active' : '' %>"
+         href="/workspaces/<%= currentWorkspace.id %>/quadro">
+        <i class="bi bi-kanban"></i> <span class="nav-text">Quadro</span>
       </a>
+      <a class="nav-item ps-4 <%= currentPath.includes('/listagem') ? 'active' : '' %>"
+         href="/workspaces/<%= currentWorkspace.id %>/listagem">
+        <i class="bi bi-list-check"></i> <span class="nav-text">Listagem</span>
+      </a>
+      <% } %>
     </div>
     <hr class="sidebar-divider">
     <div class="nav-section">
       <span class="nav-label nav-text">Notas</span>
       <a class="nav-item <%= currentPath === '/anotacoes' ? 'active' : '' %>" href="/anotacoes">
         <i class="bi bi-sticky"></i> <span class="nav-text">Anotações</span>
+      </a>
+    </div>
+    <hr class="sidebar-divider">
+    <div class="nav-section">
+      <span class="nav-label nav-text">Configurações</span>
+      <a class="nav-item <%= currentPath === '/time' ? 'active' : '' %>" href="/time">
+        <i class="bi bi-people-fill"></i> <span class="nav-text">Cadastro de Time</span>
       </a>
     </div>
   </nav>

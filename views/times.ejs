@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Times — Central de Tarefas</title>
+  <%- include('System/headIncludes.ejs') %>
+</head>
+<body>
+<div class="layout-container">
+  <%- include('partials/sidebar.ejs') %>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="page-info">
+          <h1><i class="bi bi-people-fill" style="color:var(--primary);"></i> Times</h1>
+          <p>Gerencie os times e seus membros</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <%- include('partials/userMenu.ejs') %>
+      </div>
+    </div>
+
+    <div class="content">
+      <div class="d-flex align-items-center gap-3 mb-4" style="flex-wrap:wrap;">
+        <input type="search" id="filtroTimes" class="form-control form-control-sm"
+               placeholder="🔍 Filtrar times..." style="max-width:280px;border-radius:20px;">
+        <button class="btn btn-primary btn-sm ms-auto" id="btnNovoTime">
+          <i class="bi bi-plus-lg me-1"></i> Novo Time
+        </button>
+      </div>
+      <div id="gridTimes" class="times-grid">
+        <% if (times.length === 0) { %>
+          <div class="times-empty">
+            <i class="bi bi-people" style="font-size:48px;display:block;margin-bottom:12px;color:var(--text-light);"></i>
+            <p style="font-size:16px;font-weight:600;margin:0;">Nenhum time cadastrado</p>
+            <p style="font-size:13px;color:var(--text-light);margin:4px 0 0;">Clique em "Novo Time" para começar</p>
+          </div>
+        <% } %>
+        <% times.forEach(function(t) { %>
+          <div class="time-card" data-id="<%= t.id %>" data-nome="<%= (t.nome||'').toLowerCase() %>">
+            <div class="time-card-header">
+              <div class="time-avatar"><%= (t.nome||'T').charAt(0).toUpperCase() %></div>
+              <div class="time-card-info">
+                <div class="time-card-nome"><%= t.nome %></div>
+                <% if (t.codigo) { %><div class="time-card-codigo"><i class="bi bi-hash"></i> <%= t.codigo %></div><% } %>
+              </div>
+            </div>
+            <% if (t.descricao) { %>
+              <div class="time-card-desc"><%= t.descricao %></div>
+            <% } %>
+            <div class="time-card-footer">
+              <span class="time-card-badge">
+                <i class="bi bi-person"></i> <%= t.total_membros || 0 %> membro<%= (t.total_membros || 0) !== 1 ? 's' : '' %>
+              </span>
+              <div class="time-card-actions">
+                <button class="btn-time-action btnEditarTime" data-id="<%= t.id %>"
+                        data-nome="<%= t.nome %>" data-codigo="<%= t.codigo||'' %>"
+                        data-descricao="<%= t.descricao||'' %>" title="Editar">
+                  <i class="bi bi-pencil"></i>
+                </button>
+                <button class="btn-time-action btnExcluirTime" data-id="<%= t.id %>"
+                        data-nome="<%= t.nome %>" title="Excluir">
+                  <i class="bi bi-trash"></i>
+                </button>
+                <a href="/time/<%= t.id %>" class="btn btn-primary btn-sm">
+                  <i class="bi bi-people me-1"></i> Membros
+                </a>
+              </div>
+            </div>
+          </div>
+        <% }); %>
+      </div>
+
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="modalTime" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--primary);color:white;">
+        <h5 class="modal-title" id="modalTimeTitle">Novo Time</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="timeId">
+        <div class="mb-3">
+          <label class="form-label fw-semibold" style="font-size:13px;">
+            Nome <span style="color:var(--danger)">*</span>
+          </label>
+          <input type="text" id="timeNome" class="form-control form-control-sm"
+                 placeholder="Ex: Time de Vendas" autofocus>
+        </div>
+        <div class="mb-2">
+          <label class="form-label fw-semibold" style="font-size:13px;">
+            Descrição <span style="color:var(--text-light);font-weight:400;">(opcional)</span>
+          </label>
+          <textarea id="timeDescricao" class="form-control form-control-sm" rows="2"
+                    placeholder="Descrição do time..."></textarea>
+        </div>
+        <div id="timeMsg" class="text-danger" style="display:none;font-size:12px;margin-top:6px;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnSalvarTime">
+          <i class="bi bi-check-lg me-1"></i> Salvar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="modalExcluir" tabindex="-1">
+  <div class="modal-dialog modal-sm">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--danger);color:white;">
+        <h5 class="modal-title">Excluir Time</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center" style="padding:24px 20px;">
+        <i class="bi bi-exclamation-triangle" style="font-size:32px;color:var(--warning);display:block;margin-bottom:12px;"></i>
+        <p style="margin:0;font-size:14px;">Excluir o time <strong id="excluirNome"></strong>?</p>
+        <p style="margin:4px 0 0;font-size:12px;color:var(--text-light);">Os membros não serão removidos.</p>
+        <input type="hidden" id="excluirId">
+      </div>
+      <div class="modal-footer justify-content-center">
+        <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-danger btn-sm" id="btnConfirmarExcluir">
+          <i class="bi bi-trash me-1"></i> Excluir
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.times-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+}
+.times-empty {
+  grid-column: 1 / -1;
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-light);
+}
+.time-card {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: box-shadow 0.2s;
+}
+.time-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+.time-card-header { display: flex; align-items: center; gap: 12px; }
+.time-avatar {
+  width: 42px; height: 42px; border-radius: 50%;
+  background: var(--primary-light); color: var(--primary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; font-weight: 700; flex-shrink: 0;
+}
+.time-card-info { flex: 1; min-width: 0; }
+.time-card-nome { font-size: 15px; font-weight: 700; color: var(--text-dark); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.time-card-codigo { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+.time-card-desc { font-size: 12px; color: var(--text-light); line-height: 1.4; }
+.time-card-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+.time-card-badge { font-size: 12px; color: var(--text-light); display: flex; align-items: center; gap: 4px; }
+.time-card-actions { display: flex; align-items: center; gap: 6px; }
+.btn-time-action {
+  width: 28px; height: 28px; border: none; background: transparent;
+  color: var(--text-light); border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; transition: all 0.15s;
+}
+.btn-time-action:hover { background: var(--gray); color: var(--text-dark); }
+.time-card[data-hidden="true"] { display: none; }
+</style>
+
+<%- include('System/bodyIncludes.ejs') %>
+<script>
+(function () {
+  var bsModal   = new bootstrap.Modal(document.getElementById('modalTime'));
+  var bsExcluir = new bootstrap.Modal(document.getElementById('modalExcluir'));
+  var editando  = false;
+  document.getElementById('filtroTimes').addEventListener('input', function () {
+    var term = this.value.toLowerCase();
+    document.querySelectorAll('.time-card').forEach(function (card) {
+      card.dataset.hidden = card.dataset.nome.indexOf(term) === -1 ? 'true' : 'false';
+    });
+  });
+  document.getElementById('btnNovoTime').addEventListener('click', function () {
+    editando = false;
+    document.getElementById('modalTimeTitle').textContent = 'Novo Time';
+    document.getElementById('timeId').value       = '';
+    document.getElementById('timeNome').value     = '';
+    document.getElementById('timeDescricao').value = '';
+    document.getElementById('timeMsg').style.display = 'none';
+    bsModal.show();
+    setTimeout(function () { document.getElementById('timeNome').focus(); }, 300);
+  });
+  document.querySelectorAll('.btnEditarTime').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      editando = true;
+      document.getElementById('modalTimeTitle').textContent = 'Editar Time';
+      document.getElementById('timeId').value        = this.dataset.id;
+      document.getElementById('timeNome').value      = this.dataset.nome;
+      document.getElementById('timeDescricao').value = this.dataset.descricao;
+      document.getElementById('timeMsg').style.display = 'none';
+      bsModal.show();
+      setTimeout(function () { document.getElementById('timeNome').focus(); }, 300);
+    });
+  });
+  document.getElementById('btnSalvarTime').addEventListener('click', async function () {
+    var id       = document.getElementById('timeId').value;
+    var nome     = document.getElementById('timeNome').value.trim();
+    var descricao = document.getElementById('timeDescricao').value.trim();
+    var msg      = document.getElementById('timeMsg');
+
+    if (!nome) { msg.textContent = 'Nome é obrigatório'; msg.style.display = 'block'; return; }
+    this.disabled = true;
+    this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Salvando...';
+
+    try {
+      var url    = id ? '/api/time/times/' + id + '/update' : '/api/time/times';
+      var res    = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome: nome, descricao: descricao || null }),
+      });
+      var json = await res.json();
+      if (!json.success) {
+        msg.textContent = json.message || 'Erro ao salvar';
+        msg.style.display = 'block';
+        this.disabled = false;
+        this.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar';
+        return;
+      }
+      bsModal.hide();
+      showToast(id ? 'Time atualizado!' : 'Time criado!', 'success');
+      setTimeout(function () { location.reload(); }, 600);
+    } catch (e) {
+      msg.textContent = 'Erro de conexão';
+      msg.style.display = 'block';
+      this.disabled = false;
+      this.innerHTML = '<i class="bi bi-check-lg me-1"></i> Salvar';
+    }
+  });
+
+  document.getElementById('modalTime').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && document.activeElement.tagName !== 'TEXTAREA') {
+      document.getElementById('btnSalvarTime').click();
+    }
+  });
+
+  document.querySelectorAll('.btnExcluirTime').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      document.getElementById('excluirId').value  = this.dataset.id;
+      document.getElementById('excluirNome').textContent = this.dataset.nome;
+      bsExcluir.show();
+    });
+  });
+
+  document.getElementById('btnConfirmarExcluir').addEventListener('click', async function () {
+    var id = document.getElementById('excluirId').value;
+    this.disabled = true;
+    try {
+      var res  = await fetch('/api/time/times/' + id + '/delete', { method: 'POST' });
+      var json = await res.json();
+      if (!json.success) { showToast(json.message || 'Erro ao excluir', 'error'); this.disabled = false; return; }
+      bsExcluir.hide();
+      showToast('Time excluído!', 'success');
+      var card = document.querySelector('.time-card[data-id="' + id + '"]');
+      if (card) { card.style.opacity = '0'; card.style.transition = 'opacity 0.3s'; setTimeout(function () { card.remove(); }, 300); }
+      this.disabled = false;
+    } catch (e) {
+      showToast('Erro de conexão', 'error');
+      this.disabled = false;
+    }
+  });
+})();
+</script>
+</body>
+</html>

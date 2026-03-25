@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Workspaces — Central de Tarefas</title>
+  <%- include('System/headIncludes.ejs') %>
+</head>
+<body>
+<div class="layout-container">
+  <%- include('partials/sidebar.ejs') %>
+  <div class="main-content">
+    <div class="topbar">
+      <div class="topbar-left">
+        <div class="page-info">
+          <h1><i class="bi bi-grid-1x2" style="color:var(--primary);"></i> Workspaces</h1>
+          <p>Organize suas tarefas por contexto ou projeto</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalNovoWorkspace">
+          <i class="bi bi-plus-lg"></i> Novo Workspace
+        </button>
+        <%- include('partials/userMenu.ejs') %>
+      </div>
+    </div>
+
+    <div class="content" style="padding:20px 24px;">
+      <% if (workspaces.length === 0) { %>
+        <div style="text-align:center;padding:80px 20px;color:var(--text-light);">
+          <i class="bi bi-grid-1x2" style="font-size:52px;margin-bottom:16px;display:block;color:var(--primary);opacity:0.4;"></i>
+          <p style="font-size:18px;font-weight:600;margin-bottom:8px;">Nenhum workspace ainda</p>
+          <p style="font-size:14px;margin-bottom:20px;">Crie seu primeiro workspace para organizar tarefas por projeto.</p>
+          <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNovoWorkspace">
+            <i class="bi bi-plus-lg"></i> Criar Workspace
+          </button>
+        </div>
+      <% } else { %>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;">
+          <% workspaces.forEach(function(ws) { %>
+            <div class="card" style="border-radius:10px;overflow:hidden;transition:box-shadow 0.2s;">
+              <div style="height:6px;background:var(--primary);"></div>
+              <div class="card-body" style="padding:18px;">
+                <div class="d-flex align-items-start justify-content-between mb-1">
+                  <h5 style="font-size:16px;font-weight:700;margin:0;color:var(--text-dark);flex:1;margin-right:8px;">
+                    <%= ws.nome %>
+                  </h5>
+                  <div class="d-flex align-items-center gap-1">
+                    <% if (ws.privado) { %>
+                      <span class="badge" style="background:#f3f4f6;color:#6b7280;font-size:10px;padding:3px 7px;">
+                        <i class="bi bi-lock"></i> Privado
+                      </span>
+                    <% } else { %>
+                      <span class="badge" style="background:#eff6ff;color:#2563eb;font-size:10px;padding:3px 7px;">
+                        <i class="bi bi-people"></i> Compartilhado
+                      </span>
+                    <% } %>
+                  </div>
+                </div>
+                <% if (ws.descricao) { %>
+                  <p style="font-size:13px;color:var(--text-light);margin-bottom:10px;line-height:1.4;">
+                    <%= ws.descricao.length > 100 ? ws.descricao.substring(0,100) + '…' : ws.descricao %>
+                  </p>
+                <% } else { %>
+                  <p style="font-size:13px;color:var(--text-light);margin-bottom:10px;font-style:italic;">Sem descrição</p>
+                <% } %>
+                <div class="d-flex align-items-center gap-3 mb-12" style="font-size:12px;color:var(--text-light);margin-bottom:14px;">
+                  <span><i class="bi bi-person"></i> <%= ws.criado_por %></span>
+                  <span><i class="bi bi-list-check"></i> <%= ws.total_tarefas || 0 %> tarefas</span>
+                  <span><i class="bi bi-calendar3"></i> <%= new Date(ws.data_criacao).toLocaleDateString('pt-BR') %></span>
+                </div>
+                <div class="d-flex gap-2">
+                  <a href="/workspaces/<%= ws.id %>/quadro" class="btn btn-primary btn-sm flex-fill" style="font-size:12px;">
+                    <i class="bi bi-kanban"></i> Quadro
+                  </a>
+                  <a href="/workspaces/<%= ws.id %>/listagem" class="btn btn-outline-primary btn-sm flex-fill" style="font-size:12px;">
+                    <i class="bi bi-list-check"></i> Listagem
+                  </a>
+                  <% if (ws.criado_por === user.nome) { %>
+                    <button class="btn btn-outline-danger btn-sm" style="font-size:12px;"
+                            onclick="excluirWorkspace(<%= ws.id %>, '<%= ws.nome.replace(/'/g, "\\'") %>')" title="Excluir workspace">
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  <% } %>
+                </div>
+              </div>
+            </div>
+          <% }); %>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+<div class="modal fade" id="modalNovoWorkspace" tabindex="-1" aria-labelledby="modalNovoWorkspaceLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--primary);color:white;">
+        <h5 class="modal-title" id="modalNovoWorkspaceLabel">
+          <i class="bi bi-grid-1x2"></i> Novo Workspace
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-12">
+            <label class="form-label fw-semibold">Nome <span style="color:var(--danger)">*</span></label>
+            <input type="text" class="form-control" id="wsNome" placeholder="Ex: Projeto Alpha, Sprint 3..." maxlength="200">
+          </div>
+          <div class="col-12">
+            <label class="form-label fw-semibold">Descrição</label>
+            <textarea class="form-control" id="wsDescricao" rows="2" placeholder="Descreva o objetivo deste workspace..." maxlength="500"></textarea>
+          </div>
+          <div class="col-12">
+            <div class="form-check form-switch d-flex align-items-center gap-2" style="padding-left:0;">
+              <input class="form-check-input ms-0" type="checkbox" id="wsPrivado" style="margin-right:8px;cursor:pointer;">
+              <label class="form-check-label fw-semibold" for="wsPrivado" style="cursor:pointer;">
+                <i class="bi bi-lock"></i> Apenas para mim (privado)
+              </label>
+            </div>
+            <small style="font-size:12px;color:var(--text-light);">Se marcado, apenas você pode ver este workspace.</small>
+          </div>
+          <div class="col-12" id="secaoMembros">
+            <hr style="margin:4px 0 12px;">
+            <label class="form-label fw-semibold"><i class="bi bi-people"></i> Membros</label>
+
+            <div class="d-flex gap-2 mb-2">
+              <input type="text" class="form-control form-control-sm" id="buscaMembro"
+                     placeholder="Buscar membro pelo nome..." autocomplete="off" style="flex:1;">
+              <button type="button" class="btn btn-outline-primary btn-sm" id="btnAdicionarGrupo">
+                <i class="bi bi-people-fill"></i> Adicionar Grupo
+              </button>
+            </div>
+            <div id="membrosSugestoes" style="display:none;background:#fff;border:1px solid var(--border);border-radius:6px;max-height:180px;overflow-y:auto;margin-bottom:8px;box-shadow:0 4px 12px rgba(0,0,0,0.08);"></div>
+            <div id="gruposSugestoes" style="display:none;background:#fff;border:1px solid var(--border);border-radius:6px;max-height:180px;overflow-y:auto;margin-bottom:8px;box-shadow:0 4px 12px rgba(0,0,0,0.08);"></div>
+            <div id="membrosAdicionados" style="display:none;">
+              <div style="font-size:12px;color:var(--text-light);margin-bottom:6px;font-weight:600;text-transform:uppercase;letter-spacing:0.4px;">Com acesso:</div>
+              <div id="listaMembros"></div>
+            </div>
+          </div>
+          <div class="col-12">
+            <hr style="margin:4px 0 12px;">
+            <label class="form-label fw-semibold"><i class="bi bi-kanban"></i> Colunas do Kanban</label>
+            <div id="listaColunas"></div>
+            <button type="button" class="btn btn-outline-secondary btn-sm mt-2" id="btnAdicionarColuna">
+              <i class="bi bi-plus"></i> Adicionar Coluna
+            </button>
+            <div style="font-size:12px;color:var(--text-light);margin-top:8px;">
+              <i class="bi bi-info-circle"></i>
+              Se nenhuma coluna for criada, serão usadas as colunas padrão:
+              <strong>A Fazer, Em Andamento, Em Revisão, Concluído</strong>
+            </div>
+          </div>
+
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-primary" id="btnCriarWorkspace">
+          <i class="bi bi-check-lg"></i> Criar Workspace
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<%- include('System/bodyIncludes.ejs') %>
+<script>
+var wsMembros = []; 
+var wsColunas = [];   
+var todosGrupos  = [];
+var todosMembros = [];
+
+document.getElementById('modalNovoWorkspace').addEventListener('show.bs.modal', function() {
+  carregarMembros();
+  carregarGrupos();
+});
+
+function carregarMembros() {
+  apiFetch('/api/time/membros').then(function(r) {
+    if (r.success) todosMembros = r.data || [];
+  });
+}
+
+function carregarGrupos() {
+  apiFetch('/api/time/grupos').then(function(r) {
+    if (r.success) todosGrupos = r.data || [];
+  });
+}
+
+document.getElementById('wsPrivado').addEventListener('change', function() {
+  document.getElementById('secaoMembros').style.display = this.checked ? 'none' : 'block';
+});
+
+document.getElementById('buscaMembro').addEventListener('input', function() {
+  var q = this.value.toLowerCase().trim();
+  var box = document.getElementById('membrosSugestoes');
+  if (!q) { box.style.display = 'none'; return; }
+  var filtrados = todosMembros.filter(function(m) {
+    return (m.nome || '').toLowerCase().includes(q) || (m.codigo || '').toLowerCase().includes(q);
+  }).slice(0, 10);
+  if (filtrados.length === 0) { box.style.display = 'none'; return; }
+  box.innerHTML = '';
+  filtrados.forEach(function(m) {
+    var item = document.createElement('div');
+    item.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;';
+    item.innerHTML = '<span style="width:28px;height:28px;background:var(--primary);color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;">' +
+      escapeHtml((m.nome||'?').charAt(0).toUpperCase()) +
+      '</span><span>' + escapeHtml(m.nome) + '</span><span style="color:var(--text-light);font-size:11px;">(' + escapeHtml(m.codigo||'') + ')</span>';
+    item.addEventListener('mouseover', function() { this.style.background = '#f6f8fa'; });
+    item.addEventListener('mouseout',  function() { this.style.background = ''; });
+    item.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      adicionarMembro('usuario', m.codigo || m.nome, m.nome, 'editor');
+      document.getElementById('buscaMembro').value = '';
+      box.style.display = 'none';
+    });
+    box.appendChild(item);
+  });
+  box.style.display = 'block';
+});
+
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#buscaMembro') && !e.target.closest('#membrosSugestoes')) {
+    document.getElementById('membrosSugestoes').style.display = 'none';
+  }
+  if (!e.target.closest('#btnAdicionarGrupo') && !e.target.closest('#gruposSugestoes')) {
+    document.getElementById('gruposSugestoes').style.display = 'none';
+  }
+});
+
+document.getElementById('btnAdicionarGrupo').addEventListener('click', function() {
+  var box = document.getElementById('gruposSugestoes');
+  if (box.style.display === 'block') { box.style.display = 'none'; return; }
+  box.innerHTML = '';
+  if (todosGrupos.length === 0) {
+    box.innerHTML = '<div style="padding:10px 12px;font-size:13px;color:var(--text-light);">Nenhum grupo cadastrado</div>';
+    box.style.display = 'block';
+    return;
+  }
+  todosGrupos.forEach(function(g) {
+    var item = document.createElement('div');
+    item.style.cssText = 'padding:8px 12px;cursor:pointer;font-size:13px;display:flex;align-items:center;gap:8px;';
+    item.innerHTML = '<i class="bi bi-people-fill" style="color:var(--primary);"></i> ' + escapeHtml(g.grupo);
+    item.addEventListener('mouseover', function() { this.style.background = '#f6f8fa'; });
+    item.addEventListener('mouseout',  function() { this.style.background = ''; });
+    item.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      adicionarMembro('grupo', g.grupo, 'Grupo: ' + g.grupo, 'editor');
+      box.style.display = 'none';
+    });
+    box.appendChild(item);
+  });
+  box.style.display = 'block';
+});
+
+function adicionarMembro(tipo, codigo, nome_display, permissao) {
+  var jaExiste = wsMembros.some(function(m) { return m.tipo === tipo && m.codigo === codigo; });
+  if (jaExiste) { showToast('Já adicionado!', 'warning'); return; }
+  wsMembros.push({ tipo: tipo, codigo: codigo, nome_display: nome_display, permissao: permissao });
+  renderMembros();
+}
+
+function renderMembros() {
+  var lista = document.getElementById('listaMembros');
+  var container = document.getElementById('membrosAdicionados');
+  lista.innerHTML = '';
+  if (wsMembros.length === 0) { container.style.display = 'none'; return; }
+  container.style.display = 'block';
+  wsMembros.forEach(function(m, idx) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;margin-bottom:6px;background:#fafbfc;';
+    var icon = m.tipo === 'grupo' ? '<i class="bi bi-people-fill" style="color:var(--primary);"></i>' :
+      '<span style="width:24px;height:24px;background:var(--primary);color:#fff;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;">' +
+      escapeHtml((m.nome_display||'?').charAt(0).toUpperCase()) + '</span>';
+    row.innerHTML = icon +
+      '<span style="flex:1;font-size:13px;">' + escapeHtml(m.nome_display || m.codigo) + '</span>' +
+      '<select class="form-select form-select-sm" style="width:auto;" onchange="alterarPermissaoMembro(' + idx + ', this.value)">' +
+        '<option value="editor"' + (m.permissao === 'editor' ? ' selected' : '') + '>Editor</option>' +
+        '<option value="viewer"' + (m.permissao === 'viewer' ? ' selected' : '') + '>Visualizador</option>' +
+      '</select>' +
+      '<button type="button" class="btn-close" style="font-size:10px;" onclick="removerMembro(' + idx + ')"></button>';
+    lista.appendChild(row);
+  });
+}
+
+function alterarPermissaoMembro(idx, val) { if (wsMembros[idx]) wsMembros[idx].permissao = val; }
+function removerMembro(idx) { wsMembros.splice(idx, 1); renderMembros(); }
+document.getElementById('btnAdicionarColuna').addEventListener('click', function() {
+  wsColunas.push({ nome: '', cor: '#6366f1' });
+  renderColunas();
+});
+
+function renderColunas() {
+  var lista = document.getElementById('listaColunas');
+  lista.innerHTML = '';
+  wsColunas.forEach(function(col, idx) {
+    var row = document.createElement('div');
+    row.style.cssText = 'display:flex;align-items:center;gap:8px;margin-bottom:8px;';
+    row.innerHTML =
+      '<input type="color" value="' + col.cor + '" style="width:34px;height:34px;border:1px solid var(--border);border-radius:6px;cursor:pointer;padding:2px;" onchange="alterarCorColuna(' + idx + ', this.value)">' +
+      '<input type="text" class="form-control form-control-sm" placeholder="Nome da coluna..." value="' + escapeHtml(col.nome) + '" oninput="alterarNomeColuna(' + idx + ', this.value)" style="flex:1;">' +
+      '<button type="button" class="btn btn-outline-danger btn-sm" onclick="removerColuna(' + idx + ')"><i class="bi bi-trash"></i></button>';
+    lista.appendChild(row);
+  });
+}
+
+function alterarNomeColuna(idx, val) { if (wsColunas[idx]) wsColunas[idx].nome = val; }
+function alterarCorColuna(idx, val)  { if (wsColunas[idx]) wsColunas[idx].cor = val; }
+function removerColuna(idx) { wsColunas.splice(idx, 1); renderColunas(); }
+
+document.getElementById('btnCriarWorkspace').addEventListener('click', function() {
+  var nome = (document.getElementById('wsNome').value || '').trim();
+  if (!nome) { showToast('Informe o nome do workspace', 'error'); return; }
+  var privado  = document.getElementById('wsPrivado').checked;
+  var descricao = (document.getElementById('wsDescricao').value || '').trim();
+
+  var colunasValidas = wsColunas.filter(function(c) { return c.nome.trim(); });
+
+  var payload = {
+    nome:     nome,
+    descricao: descricao || null,
+    privado:  privado,
+    membros:  privado ? [] : wsMembros,
+    colunas:  colunasValidas,
+  };
+
+  var btn = document.getElementById('btnCriarWorkspace');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Criando...';
+
+  apiFetch('/api/workspaces', { method: 'POST', body: payload })
+    .then(function(r) {
+      if (r.success) {
+        showToast('Workspace criado!', 'success');
+        bootstrap.Modal.getInstance(document.getElementById('modalNovoWorkspace')).hide();
+        setTimeout(function() { location.reload(); }, 700);
+      } else {
+        showToast(r.message || 'Erro ao criar workspace', 'error');
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-check-lg"></i> Criar Workspace';
+      }
+    })
+    .catch(function() {
+      showToast('Erro de conexão', 'error');
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-check-lg"></i> Criar Workspace';
+    });
+});
+
+document.getElementById('modalNovoWorkspace').addEventListener('hidden.bs.modal', function() {
+  document.getElementById('wsNome').value = '';
+  document.getElementById('wsDescricao').value = '';
+  document.getElementById('wsPrivado').checked = false;
+  document.getElementById('secaoMembros').style.display = 'block';
+  wsMembros = [];
+  wsColunas = [];
+  renderMembros();
+  renderColunas();
+  var btn = document.getElementById('btnCriarWorkspace');
+  btn.disabled = false;
+  btn.innerHTML = '<i class="bi bi-check-lg"></i> Criar Workspace';
+});
+
+function excluirWorkspace(id, nome) {
+  if (!confirm('Deseja excluir o workspace "' + nome + '"?\n\nAs tarefas dentro dele NÃO serão excluídas.')) return;
+  apiFetch('/api/workspaces/' + id + '/delete', { method: 'POST' })
+    .then(function(r) {
+      if (r.success) {
+        showToast('Workspace excluído!', 'success');
+        setTimeout(function() { location.reload(); }, 700);
+      } else {
+        showToast(r.message || 'Erro ao excluir', 'error');
+      }
+    });
+}
+
+function escapeHtml(str) {
+  return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

@@ -22,9 +22,7 @@
         <%- include('partials/userMenu.ejs') %>
       </div>
     </div>
-
     <div class="content">
-      <!-- Widgets -->
       <div class="widgets-grid">
         <div class="widget">
           <div class="widget-content">
@@ -55,15 +53,12 @@
           <div class="widget-icon danger"><i class="bi bi-exclamation-triangle"></i></div>
         </div>
       </div>
-
-      <!-- Tabela -->
       <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
           <span><i class="bi bi-table me-2"></i>Tarefas</span>
           <span class="badge badge-primary" id="totalBadge"><%= tarefas.length %> registros</span>
         </div>
         <div class="card-body" style="padding:12px;">
-          <!-- Filtros typeahead (padrão produto-base) -->
           <div class="d-flex gap-2 flex-wrap mb-2" id="colFiltersRow">
             <div class="filter-wrap" style="width:160px; flex:0 0 auto;">
               <input type="search" class="form-control form-control-sm col-filter" data-col="1"
@@ -80,12 +75,10 @@
                 placeholder="Prioridade" style="width:100%; box-sizing:border-box;">
               <div class="filter-dropdown" id="dlbox-col-3" data-col="3" aria-hidden="true"></div>
             </div>
-            <!-- Responsável e Categoria removidos conforme solicitado -->
             <button class="btn btn-secondary btn-sm" id="btnLimparFiltro">
               <i class="bi bi-x-circle"></i> Limpar
             </button>
           </div>
-
           <div class="table-responsive">
             <table id="tabelaTarefas" class="table table-bordered custom-table" style="width:100%">
               <thead>
@@ -131,8 +124,6 @@
               </tbody>
             </table>
           </div>
-
-          <!-- Gráficos dentro do card (padrão produto-base) -->
           <div class="charts-row d-flex gap-3 mt-3" style="align-items:stretch;">
             <div class="card" style="flex:1 1 420px; min-width:280px;">
               <div class="card-body">
@@ -152,13 +143,11 @@
     </div>
   </div>
 </div>
-
-<!-- Modal Criar/Editar Tarefa -->
 <div class="modal fade" id="modalTarefa" tabindex="-1">
   <div class="modal-dialog modal-lg">
     <div class="modal-content">
       <div class="modal-header" style="background:var(--primary);color:white;">
-        <h5 class="modal-title"><i class="bi bi-list-check"></i> <span id="modalTarefaTitulo">Tarefa</span></h5>
+        <h5 class="modal-title"><span id="modalTarefaTitulo">Tarefa</span></h5>
         <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
       </div>
       <div class="modal-body">
@@ -260,7 +249,6 @@ document.addEventListener('DOMContentLoaded', function () {
         }
       });
 
-      // Filtros typeahead (padrão produto-base)
       document.querySelectorAll('.col-filter').forEach(function (inp) {
         inp.addEventListener('input', function () {
           var col = parseInt(this.getAttribute('data-col'), 10);
@@ -330,8 +318,6 @@ document.addEventListener('DOMContentLoaded', function () {
       populateDatalists();
       dt.on('draw.dt', populateDatalists);
       dt.on('draw.dt', updateWidgets);
-
-      // Limpar filtros
       var btnLimpar = document.getElementById('btnLimparFiltro');
       if (btnLimpar) {
         btnLimpar.addEventListener('click', function () {
@@ -340,9 +326,7 @@ document.addEventListener('DOMContentLoaded', function () {
         });
       }
 
-      // Gráficos (atualizados via draw.dt)
       var chartStatus = null, chartPrioridade = null;
-
       function updateCharts() {
         try {
           if (!dt) return;
@@ -359,7 +343,6 @@ document.addEventListener('DOMContentLoaded', function () {
           var sData   = sLabels.map(function (k) { return statusCount[k]; });
           var pLabels = ['Alta', 'Média', 'Baixa'];
           var pData   = [prioCount['ALTA'], prioCount['MEDIA'], prioCount['BAIXA']];
-
           var ctxS = document.getElementById('chartStatus');
           if (ctxS) {
             if (!chartStatus) {
@@ -388,7 +371,6 @@ document.addEventListener('DOMContentLoaded', function () {
       }
       dt.on('draw.dt', function () { updateCharts(); });
       setTimeout(function () { updateCharts(); }, 120);
-
       updateWidgets();
     }
   } catch (e) { console.error('DataTable init error:', e); }
@@ -420,10 +402,7 @@ document.addEventListener('DOMContentLoaded', function () {
       if (el('totalBadge')) el('totalBadge').textContent  = total + ' registro' + (total !== 1 ? 's' : '');
     } catch(_) {}
   }
-
-  // Modal
   var bsModal = new bootstrap.Modal(document.getElementById('modalTarefa'));
-
   document.getElementById('btnNovaTarefa').addEventListener('click', function () {
     clearModal();
     document.getElementById('modalTarefaTitulo').textContent = 'Nova Tarefa';
@@ -495,7 +474,6 @@ document.addEventListener('DOMContentLoaded', function () {
   from { opacity:0; transform:translateY(16px); }
   to   { opacity:1; transform:translateY(0); }
 }
-/* Filtros typeahead */
 .filter-wrap { position: relative; display: inline-block; }
 .filter-dropdown {
   position: absolute;
@@ -512,11 +490,8 @@ document.addEventListener('DOMContentLoaded', function () {
 }
 .filter-option { padding: 6px 10px; cursor: pointer; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .filter-option:hover { background: #f6f8fa; }
-/* Tabela — alinhado com estilo Cini-Pricing */
 .custom-table, .card-body .custom-table { width: 100%; border-radius: 0; overflow: hidden; background: white; margin-bottom: 0; box-shadow: none; }
-
 #tabelaTarefas, #tabelaTarefas.custom-table { width: 100% !important; }
-
 #tabelaTarefas thead th,
 #tabelaTarefas tbody td,
 #tabelaTarefas th {
@@ -539,7 +514,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
 #tabelaTarefas tbody tr:hover { background-color: #f8f9fa !important; }
 #tabelaTarefas tbody tr:nth-child(even) { background-color: #f8f9fa !important; }
-
 #tabelaTarefas .status-badge,
 #tabelaTarefas .priority-badge {
   padding: 4px 8px !important;
@@ -549,7 +523,6 @@ document.addEventListener('DOMContentLoaded', function () {
   display: inline-block !important;
 }
 
-/* reduce generic button size inside table cells to avoid tall rows */
 #tabelaTarefas tbody td .btn {
   padding: 0 4px !important;
   margin: 0 !important;
@@ -563,10 +536,7 @@ document.addEventListener('DOMContentLoaded', function () {
   justify-content: center !important;
 }
 
-/* Chart canvas */
 .chart-canvas { width: 100% !important; height: 260px !important; }
-
-/* compact action buttons — aumentar levemente para 16x16 */
 #tabelaTarefas tbody td .compact-action-btn {
   padding: 0 !important;
   height: 16px !important;

@@ -2,7 +2,6 @@
 
 const sql      = require('mssql');
 const dbConfig = require('../config/dbConfig');
-
 let _pool = null;
 let _poolPromise = null;
 
@@ -123,13 +122,15 @@ async function insert(payload) {
   request.input('data_vencimento',  sql.Date,         payload.data_vencimento || null);
   request.input('posicao',          sql.Int,          payload.posicao || 0);
   request.input('criado_por',       sql.VarChar(100), payload.criado_por || null);
+  request.input('id_workspace',     sql.Int,          payload.id_workspace || null);
+  request.input('id_coluna',        sql.Int,          payload.id_coluna || null);
 
   const result = await request.query(`
     INSERT INTO TAREFAS
-      (titulo, descricao, status, prioridade, responsavel_nome, id_categoria, data_vencimento, posicao, criado_por)
+      (titulo, descricao, status, prioridade, responsavel_nome, id_categoria, data_vencimento, posicao, criado_por, id_workspace, id_coluna)
     OUTPUT INSERTED.id
     VALUES
-      (@titulo, @descricao, @status, @prioridade, @responsavel_nome, @id_categoria, @data_vencimento, @posicao, @criado_por)
+      (@titulo, @descricao, @status, @prioridade, @responsavel_nome, @id_categoria, @data_vencimento, @posicao, @criado_por, @id_workspace, @id_coluna)
   `);
   return result.recordset[0].id;
 }
@@ -145,6 +146,8 @@ async function update(id, payload) {
   request.input('responsavel_nome', sql.VarChar(200), payload.responsavel_nome || null);
   request.input('id_categoria',     sql.Int,          payload.id_categoria || null);
   request.input('data_vencimento',  sql.Date,         payload.data_vencimento || null);
+  request.input('id_workspace',     sql.Int,          payload.id_workspace !== undefined ? payload.id_workspace : null);
+  request.input('id_coluna',        sql.Int,          payload.id_coluna !== undefined ? payload.id_coluna : null);
 
   await request.query(`
     UPDATE TAREFAS SET
@@ -155,6 +158,8 @@ async function update(id, payload) {
       responsavel_nome = @responsavel_nome,
       id_categoria     = @id_categoria,
       data_vencimento  = @data_vencimento,
+      id_workspace     = CASE WHEN @id_workspace IS NOT NULL THEN @id_workspace ELSE id_workspace END,
+      id_coluna        = CASE WHEN @id_coluna IS NOT NULL THEN @id_coluna ELSE id_coluna END,
       data_atualizacao = GETDATE()
     WHERE id = @id AND ativo = 1
   `);
@@ -177,9 +182,26 @@ async function updatePosicoes(items) {
     const request = pool.request();
     request.input('id',      sql.Int,         item.id);
     request.input('posicao', sql.Int,         item.posicao);
-    request.input('status',  sql.VarChar(20), item.status);
+    request.input('status',  sql.VarChar(20), item.status || null);
     await request.query(`
       UPDATE TAREFAS SET posicao = @posicao, status = @status, data_atualizacao = GETDATE()
+      WHERE id = @id AND ativo = 1
+    `);
+  }
+}
+
+async function updatePosicoesWorkspace(items) {
+  const pool = await getPool();
+  for (const item of items) {
+    const request = pool.request();
+    request.input('id',        sql.Int, item.id);
+    request.input('posicao',   sql.Int, item.posicao);
+    request.input('id_coluna', sql.Int, item.id_coluna || null);
+    await request.query(`
+      UPDATE TAREFAS SET
+        posicao          = @posicao,
+        id_coluna        = ISNULL(@id_coluna, id_coluna),
+        data_atualizacao = GETDATE()
       WHERE id = @id AND ativo = 1
     `);
   }
@@ -191,8 +213,6 @@ async function deleteById(id) {
   request.input('id', sql.Int, id);
   await request.query(`UPDATE TAREFAS SET ativo = 0 WHERE id = @id`);
 }
-
-// --- Checklist ---
 
 async function getChecklistItems(tarefaId) {
   const pool    = await getPool();
@@ -240,7 +260,23 @@ async function deleteChecklistItem(itemId) {
   await request.query(`DELETE FROM CHECKLIST_ITEMS WHERE id = @id`);
 }
 
-// --- Responsáveis (nomes distintos já cadastrados) e Categorias ---
+async function updateChecklistItem(itemId, descricao) {
+  const pool    = await getPool();
+  const request = pool.request();
+  request.input('id',        sql.Int,          itemId);
+  request.input('descricao', sql.VarChar(500),  descricao);
+  await request.query(`UPDATE CHECKLIST_ITEMS SET descricao = @descricao WHERE id = @id`);
+}
+
+async function reorderChecklistItems(items) {
+  const pool = await getPool();
+  for (const item of items) {
+    const request = pool.request();
+    request.input('id',      sql.Int, item.id);
+    request.input('posicao', sql.Int, item.posicao);
+    await request.query(`UPDATE CHECKLIST_ITEMS SET posicao = @posicao WHERE id = @id`);
+  }
+}
 
 async function getResponsaveis() {
   const pool   = await getPool();
@@ -271,11 +307,14 @@ module.exports = {
   update,
   updateStatus,
   updatePosicoes,
+  updatePosicoesWorkspace,
   deleteById,
   getChecklistItems,
   addChecklistItem,
   toggleChecklistItem,
   deleteChecklistItem,
+  updateChecklistItem,
+  reorderChecklistItems,
   getResponsaveis,
   getCategorias,
 };
