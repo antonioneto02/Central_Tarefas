@@ -18,9 +18,29 @@ app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+const { swaggerUi, swaggerDocument } = require('./swagger');
+app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use('/assets', express.static(path.join(__dirname, 'assets')));
 app.use('/css',    express.static(path.join(__dirname, 'public', 'css')));
 app.use(cookieParser());
+app.use((req, res, next) => {
+  try {
+    if (req.query && (req.query.sso_token || req.query.sso_refresh)) {
+      if (req.query.sso_token) {
+        res.cookie('token', req.query.sso_token, { httpOnly: true, secure: false, sameSite: 'lax', maxAge: 3600000 });
+        if (req.query.sso_username) {
+          res.cookie('username', req.query.sso_username, { httpOnly: true, secure: false, sameSite: 'lax', maxAge: 43200000 });
+        }
+      }
+      if (req.query.sso_refresh) {
+        res.cookie('refresh_token', req.query.sso_refresh, { httpOnly: true, secure: false, sameSite: 'lax', maxAge: 43200000 });
+      }
+      const clean = req.originalUrl.replace(/(\?|&)(sso_token|sso_refresh|sso_username)=[^&]*/g, '').replace(/[?&]$/, '');
+      return res.redirect(clean || '/');
+    }
+  } catch (e) {}
+  return next();
+});
 app.use(session({
   secret:            process.env.SESSION_SECRET || 'central_tarefas_secret_change_me',
   resave:            false,
@@ -60,7 +80,9 @@ async function ensureAuth(req, res, next) {
 }
 
 app.get('/', (req, res) => {
-  if (req.session && req.session.userID) return res.redirect('/dashboard');
+  const hasSession = req.session && req.session.userID;
+  const hasCookies = req.cookies && (req.cookies.token || req.cookies.refresh_token);
+  if (hasSession || hasCookies) return res.redirect('/dashboard');
   return res.redirect('/loginPage');
 });
 

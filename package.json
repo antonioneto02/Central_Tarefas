@@ -4,7 +4,7 @@
   "description": "Central de Tarefas — Gerenciamento de Tarefas e Anotações",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "title Central de Tarefas && node server.js"
   },
   "dependencies": {
     "axios": "^1.6.0",
@@ -14,6 +14,7 @@
     "ejs": "^3.1.9",
     "express": "^4.18.2",
     "express-session": "^1.17.3",
-    "mssql": "^12.2.0"
+    "mssql": "^12.2.0",
+    "swagger-ui-express": "^5.0.1"
   }
 }
