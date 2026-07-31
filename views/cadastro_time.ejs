@@ -283,7 +283,7 @@
       btn.title     = 'Adicionar ao time';
       btn.innerHTML = '<i class="bi bi-plus-lg"></i>';
       btn.addEventListener('click', function () {
-        document.getElementById('confCodigo').value = val(row, colUsrId) || val(row, colCodigo);
+        document.getElementById('confCodigo').value = val(row, colCodigo) || val(row, colUsrId);
         document.getElementById('confNome').value   = val(row, colNome);
         document.getElementById('confGrupo').value  = val(row, colGrupo);
         document.getElementById('confUsrId').value  = val(row, colUsrId);

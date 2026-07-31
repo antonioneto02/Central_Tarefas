@@ -275,8 +275,9 @@ app.post('/api/workspaces/:wsId/tarefas/reorder', ensureAuth, async (req, res) =
 app.post('/api/workspaces/:id/colunas', ensureAuth, async (req, res) => {
   try {
     const id  = parseInt(req.params.id, 10);
-    const { nome, cor, posicao } = req.body;
-    const colId = await workspaceModel.addColuna(id, nome, cor || '#6366f1', posicao || 0);
+    const { nome, cor } = req.body;
+    if (!nome || !nome.trim()) return res.status(400).json({ success: false, message: 'Nome é obrigatório' });
+    const colId = await workspaceModel.addColunaSmart(id, nome.trim(), cor || '#6366f1');
     return res.json({ success: true, id: colId });
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });

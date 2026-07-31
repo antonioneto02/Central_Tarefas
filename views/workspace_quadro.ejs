@@ -73,7 +73,7 @@
               <div class="task-card priority-<%= prio %>" data-id="<%= card.id %>"
                    data-status="<%= card.status %>"
                    data-colid="<%= card.id_coluna || '' %>">
-                <div class="card-priority-bar"></div>
+                <div class="card-priority-bar" style="background:<%= col.cor || '#94a3b8' %>;"></div>
                 <p class="card-title"><%= card.titulo %></p>
                 <% if (card.descricao) { %>
                   <p class="card-desc"><%= card.descricao.length > 90 ? card.descricao.substring(0,90) + '…' : card.descricao %></p>
@@ -87,13 +87,12 @@
                   </div>
                 <% } %>
                 <div class="card-footer-row">
-                  <% if (card.data_vencimento) { %>
-                    <span class="due-date <%= isOverdue ? 'overdue' : '' %>">
-                      <i class="bi bi-calendar3"></i>
-                      <%= new Date(card.data_vencimento).toLocaleDateString('pt-BR') %>
-                    </span>
-                  <% } %>
-                  <span class="priority-badge <%= prio %>" style="margin-left:auto;margin-right:4px;">
+                  <span class="due-date <%= isOverdue ? 'overdue' : '' %>" style="margin-left:auto;"
+                        title="<%= card.data_vencimento ? 'Vencimento' : 'Criado em' %>">
+                    <i class="bi bi-calendar3"></i>
+                    <%= new Date(card.data_vencimento || card.data_criacao).toLocaleDateString('pt-BR') %>
+                  </span>
+                  <span class="priority-badge <%= prio %>" style="margin-right:4px;">
                     <%= card.prioridade %>
                   </span>
                   <% if (permissao === 'owner' || permissao === 'editor') { %>
@@ -119,6 +118,22 @@
           <% } %>
         </div>
         <% }); %>
+
+        <% if (permissao === 'owner' || permissao === 'editor') { %>
+        <div class="kanban-column-add" id="addColumnContainer">
+          <button class="btn-add-column" id="btnAddColumn">
+            <i class="bi bi-plus-lg"></i> Adicionar coluna
+          </button>
+          <div class="add-column-form" id="addColumnForm" style="display:none;">
+            <input type="text" class="form-control form-control-sm mb-2" id="newColumnName" placeholder="Nome da coluna">
+            <input type="color" class="form-control form-control-sm mb-2" id="newColumnColor" value="#6366f1" title="Cor da coluna">
+            <div class="d-flex gap-2">
+              <button class="btn btn-primary btn-sm" id="btnSaveColumn">Adicionar</button>
+              <button class="btn btn-secondary btn-sm" id="btnCancelColumn">Cancelar</button>
+            </div>
+          </div>
+        </div>
+        <% } %>
 
       </div>
     </div>
@@ -184,6 +199,69 @@
         <button type="button" class="btn btn-primary" id="btnSalvarTarefa">
           <i class="bi bi-check-lg"></i> Salvar
         </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="modal fade" id="modalDetalhes" tabindex="-1" aria-labelledby="modalDetalhesLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--primary);color:white;">
+        <h5 class="modal-title" id="modalDetalhesLabel">
+          <i class="bi bi-card-checklist"></i> Detalhes da Tarefa
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <h5 id="dTitulo" class="mb-2"></h5>
+        <p id="dDescricao" class="text-muted" style="white-space:pre-wrap;"></p>
+        <div class="row g-3 mb-3">
+          <div class="col-md-4">
+            <small class="text-muted d-block">Coluna</small>
+            <span id="dColuna" class="fw-semibold"></span>
+          </div>
+          <div class="col-md-4">
+            <small class="text-muted d-block">Prioridade</small>
+            <span id="dPrioridade" class="priority-badge"></span>
+          </div>
+          <div class="col-md-4">
+            <small class="text-muted d-block">Vencimento</small>
+            <span id="dVencimento" class="fw-semibold"></span>
+          </div>
+          <div class="col-md-4">
+            <small class="text-muted d-block">Responsável</small>
+            <span id="dResponsavel" class="fw-semibold"></span>
+          </div>
+          <div class="col-md-4">
+            <small class="text-muted d-block">Categoria</small>
+            <span id="dCategoria" class="fw-semibold"></span>
+          </div>
+          <div class="col-md-4">
+            <small class="text-muted d-block">Criado por</small>
+            <span id="dCriadoPor" class="fw-semibold"></span>
+          </div>
+          <div class="col-md-4">
+            <small class="text-muted d-block">Criado em</small>
+            <span id="dCriadoEm" class="fw-semibold"></span>
+          </div>
+          <div class="col-md-4">
+            <small class="text-muted d-block">Atualizado em</small>
+            <span id="dAtualizadoEm" class="fw-semibold"></span>
+          </div>
+        </div>
+        <div id="dChecklistSection" style="display:none;">
+          <label class="form-label fw-semibold">Checklist</label>
+          <div id="dChecklistItems" class="mb-2"></div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fechar</button>
+        <% if (permissao === 'owner' || permissao === 'editor') { %>
+          <button type="button" class="btn btn-primary" id="btnEditarDoDetalhe">
+            <i class="bi bi-pencil"></i> Editar
+          </button>
+        <% } %>
       </div>
     </div>
   </div>
@@ -286,6 +364,32 @@ function cancelInlineCard(chave) {
   if (txt)  txt.value = '';
 }
 
+var btnAddColumn = document.getElementById('btnAddColumn');
+if (btnAddColumn) {
+  var addColumnForm = document.getElementById('addColumnForm');
+  var newColumnName = document.getElementById('newColumnName');
+  btnAddColumn.addEventListener('click', function() {
+    btnAddColumn.style.display = 'none';
+    addColumnForm.style.display = 'block';
+    newColumnName.focus();
+  });
+  document.getElementById('btnCancelColumn').addEventListener('click', function() {
+    addColumnForm.style.display = 'none';
+    btnAddColumn.style.display = 'flex';
+    newColumnName.value = '';
+  });
+  document.getElementById('btnSaveColumn').addEventListener('click', function() {
+    var nome = newColumnName.value.trim();
+    if (!nome) { showToast('Informe um nome para a coluna', 'error'); return; }
+    var cor = document.getElementById('newColumnColor').value;
+    apiFetch('/api/workspaces/' + WORKSPACE_ID + '/colunas', { method: 'POST', body: { nome: nome, cor: cor } })
+      .then(function(r) {
+        if (r.success) { showToast('Coluna criada!', 'success'); setTimeout(function() { location.reload(); }, 600); }
+        else showToast('Erro ao criar coluna', 'error');
+      }).catch(function() { showToast('Erro de conexão', 'error'); });
+  });
+}
+
 var bsModal = new bootstrap.Modal(document.getElementById('modalTarefa'));
 if (CAN_EDIT) {
   document.getElementById('btnNovaTarefa').addEventListener('click', function() {
@@ -299,6 +403,79 @@ document.querySelectorAll('.btn-card-edit').forEach(function(btn) {
     openModal(parseInt(btn.dataset.id));
   });
 });
+
+var bsModalDetalhes  = new bootstrap.Modal(document.getElementById('modalDetalhes'));
+var detalheTarefaId  = null;
+
+document.querySelectorAll('.task-card').forEach(function(card) {
+  card.addEventListener('click', function() {
+    openDetalhesModal(parseInt(card.dataset.id));
+  });
+});
+
+function openDetalhesModal(id) {
+  detalheTarefaId = id;
+  apiFetch('/api/tarefas/' + id).then(function(r) {
+    if (!r.success || !r.data) return;
+    var t = r.data;
+    document.getElementById('dTitulo').textContent    = t.titulo || '';
+    document.getElementById('dDescricao').textContent = t.descricao || 'Sem descrição';
+
+    var colunaNome = t.coluna_nome;
+    if (!colunaNome) {
+      var colObj = COLUNAS_DATA.find(function(c) {
+        return HAS_CUSTOM ? c.id === t.id_coluna : c.chave === t.status;
+      });
+      colunaNome = colObj ? colObj.nome : '-';
+    }
+    document.getElementById('dColuna').textContent = colunaNome;
+
+    var prio  = (t.prioridade || 'MEDIA').toLowerCase();
+    var dPrio = document.getElementById('dPrioridade');
+    dPrio.textContent = t.prioridade || '-';
+    dPrio.className   = 'priority-badge ' + prio;
+
+    document.getElementById('dVencimento').textContent  = t.data_vencimento ? new Date(t.data_vencimento).toLocaleDateString('pt-BR') : '-';
+    document.getElementById('dResponsavel').textContent = t.responsavel_nome || '-';
+    document.getElementById('dCategoria').textContent   = t.categoria_nome || '-';
+    document.getElementById('dCriadoPor').textContent   = t.criado_por || '-';
+    document.getElementById('dCriadoEm').textContent     = formatDateTime(t.data_criacao);
+    document.getElementById('dAtualizadoEm').textContent = formatDateTime(t.data_atualizacao);
+
+    loadDetalhesChecklist(id);
+  });
+  bsModalDetalhes.show();
+}
+
+function formatDateTime(value) {
+  if (!value) return '-';
+  var d = new Date(value);
+  return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR').substring(0,5);
+}
+
+function loadDetalhesChecklist(tarefaId) {
+  var section   = document.getElementById('dChecklistSection');
+  var container = document.getElementById('dChecklistItems');
+  container.innerHTML = '';
+  apiFetch('/api/tarefas/' + tarefaId + '/checklist').then(function(r) {
+    if (!r.success || !r.data || r.data.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    r.data.forEach(function(item) {
+      var div = document.createElement('div');
+      div.className = 'd-flex align-items-center gap-2 mb-1';
+      div.innerHTML = '<input type="checkbox" class="form-check-input" disabled ' + (item.concluido ? 'checked' : '') + '>' +
+        '<span style="font-size:13px;' + (item.concluido ? 'text-decoration:line-through;color:var(--text-light);' : '') + '">' + escapeHtml(item.descricao) + '</span>';
+      container.appendChild(div);
+    });
+  });
+}
+
+if (CAN_EDIT) {
+  document.getElementById('btnEditarDoDetalhe').addEventListener('click', function() {
+    bsModalDetalhes.hide();
+    setTimeout(function() { openModal(detalheTarefaId); }, 300);
+  });
+}
 
 function openModal(id) {
   clearModal();
