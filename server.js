@@ -1,5 +1,7 @@
 'use strict';
 const path        = require('path');
+const fs          = require('fs');
+const https       = require('https');
 const express     = require('express');
 const compression = require('compression');
 const session     = require('express-session');
@@ -672,7 +674,13 @@ app.post('/api/time/membros/:id/delete', ensureAuth, async (req, res) => {
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Central de Tarefas rodando em http://localhost:${PORT}`);
-  console.log(`Login: http://localhost:${PORT}/loginPage`);
+const CERT_DIR = 'C:\\Projetos\\Certificados';
+const sslOptions = {
+  key: fs.readFileSync(path.join(CERT_DIR, 'cini.key')),
+  cert: fs.readFileSync(path.join(CERT_DIR, 'cini.crt')),
+};
+
+https.createServer(sslOptions, app).listen(PORT, () => {
+  console.log(`Central de Tarefas rodando em https://localhost:${PORT}`);
+  console.log(`Login: https://localhost:${PORT}/loginPage`);
 });
