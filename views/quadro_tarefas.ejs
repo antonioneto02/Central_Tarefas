@@ -90,7 +90,7 @@
             <% }); } %>
           </div>
           <div class="kanban-add-zone" id="addzone-<%= col.key %>" style="display:none;">
-            <textarea placeholder="Título da tarefa..." rows="2" id="addtxt-<%= col.key %>"></textarea>
+            <textarea placeholder="Título da tarefa..." rows="2" maxlength="300" id="addtxt-<%= col.key %>"></textarea>
             <div class="kanban-add-actions">
               <button class="btn btn-primary btn-sm" onclick="saveInlineCard('<%= col.key %>')">Adicionar</button>
               <button class="btn btn-secondary btn-sm" onclick="cancelInlineCard('<%= col.key %>')">Cancelar</button>
@@ -114,7 +114,7 @@
         <div class="row g-3">
           <div class="col-12">
             <label class="form-label fw-semibold">Título *</label>
-            <input type="text" class="form-control" id="fTitulo" placeholder="Descreva a tarefa..." required>
+            <input type="text" class="form-control" id="fTitulo" placeholder="Descreva a tarefa..." maxlength="300" required>
           </div>
           <div class="col-12">
             <label class="form-label fw-semibold">Descrição</label>

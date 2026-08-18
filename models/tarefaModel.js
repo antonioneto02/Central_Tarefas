@@ -29,6 +29,12 @@ function parseDataLocal(str) {
   return new Date(y, m - 1, d);
 }
 
+function truncate(str, max) {
+  if (str === undefined || str === null) return null;
+  const s = String(str);
+  return s.length > max ? s.slice(0, max) : s;
+}
+
 async function getKanbanData() {
   const pool   = await getPool();
   const result = await pool.request().query(`
@@ -147,15 +153,15 @@ async function insert(payload) {
     : await getNextPosicao(pool, payload);
 
   const request = pool.request();
-  request.input('titulo',           sql.VarChar(300), payload.titulo || '');
+  request.input('titulo',           sql.VarChar(300), truncate(payload.titulo, 300) || '');
   request.input('descricao',        sql.Text,         payload.descricao || null);
-  request.input('status',           sql.VarChar(20),  payload.status || 'A_FAZER');
-  request.input('prioridade',       sql.VarChar(10),  payload.prioridade || 'MEDIA');
-  request.input('responsavel_nome', sql.VarChar(200), payload.responsavel_nome || null);
+  request.input('status',           sql.VarChar(20),  truncate(payload.status, 20) || 'A_FAZER');
+  request.input('prioridade',       sql.VarChar(10),  truncate(payload.prioridade, 10) || 'MEDIA');
+  request.input('responsavel_nome', sql.VarChar(200), truncate(payload.responsavel_nome, 200));
   request.input('id_categoria',     sql.Int,          payload.id_categoria || null);
   request.input('data_vencimento',  sql.Date,         parseDataLocal(payload.data_vencimento));
   request.input('posicao',          sql.Int,          posicao);
-  request.input('criado_por',       sql.VarChar(100), payload.criado_por || null);
+  request.input('criado_por',       sql.VarChar(100), truncate(payload.criado_por, 100));
   request.input('id_workspace',     sql.Int,          payload.id_workspace || null);
   request.input('id_coluna',        sql.Int,          payload.id_coluna || null);
 
@@ -173,11 +179,11 @@ async function update(id, payload) {
   const pool    = await getPool();
   const request = pool.request();
   request.input('id',               sql.Int,          id);
-  request.input('titulo',           sql.VarChar(300), payload.titulo || '');
+  request.input('titulo',           sql.VarChar(300), truncate(payload.titulo, 300) || '');
   request.input('descricao',        sql.Text,         payload.descricao || null);
-  request.input('status',           sql.VarChar(20),  payload.status || 'A_FAZER');
-  request.input('prioridade',       sql.VarChar(10),  payload.prioridade || 'MEDIA');
-  request.input('responsavel_nome', sql.VarChar(200), payload.responsavel_nome || null);
+  request.input('status',           sql.VarChar(20),  truncate(payload.status, 20) || 'A_FAZER');
+  request.input('prioridade',       sql.VarChar(10),  truncate(payload.prioridade, 10) || 'MEDIA');
+  request.input('responsavel_nome', sql.VarChar(200), truncate(payload.responsavel_nome, 200));
   request.input('id_categoria',     sql.Int,          payload.id_categoria || null);
   request.input('data_vencimento',  sql.Date,         parseDataLocal(payload.data_vencimento));
   request.input('id_workspace',     sql.Int,          payload.id_workspace !== undefined ? payload.id_workspace : null);
