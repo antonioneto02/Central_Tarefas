@@ -1,0 +1,16 @@
+services:
+  central-tarefas:
+    image: central-tarefas:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: central-tarefas
+    restart: unless-stopped
+    ports:
+      - "3011:3011"
+    env_file:
+      - .env
+    environment:
+      CERT_DIR: C:/certs
+    volumes:
+      - C:/Projetos/Certificados:C:/certs:ro

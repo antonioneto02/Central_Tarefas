@@ -4,7 +4,9 @@
   "description": "Central de Tarefas — Gerenciamento de Tarefas e Anotações",
   "main": "server.js",
   "scripts": {
-    "start": "title Central de Tarefas && node server.js"
+    "start": "title Central de Tarefas && node server.js",
+    "test:unit": "node --test tests/unit/*.test.js",
+    "test": "npm run test:unit"
   },
   "dependencies": {
     "axios": "^1.6.0",
@@ -16,5 +18,9 @@
     "express-session": "^1.17.3",
     "mssql": "^12.2.0",
     "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "eslint-plugin-security": "^3.0.1"
   }
 }

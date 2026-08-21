@@ -50,6 +50,10 @@ app.use(session({
   cookie:            { maxAge: 8 * 60 * 60 * 1000 },
 }));
 
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', service: 'central-tarefas' });
+});
+
 app.use((req, res, next) => {
   res.locals.currentPath      = req.path || '/';
   res.locals.currentWorkspace = null;
@@ -674,7 +678,7 @@ app.post('/api/time/membros/:id/delete', ensureAuth, async (req, res) => {
   }
 });
 
-const CERT_DIR = 'C:\\Projetos\\Certificados';
+const CERT_DIR = process.env.CERT_DIR || 'C:\\Projetos\\Certificados';
 const sslOptions = {
   key: fs.readFileSync(path.join(CERT_DIR, 'cini.key')),
   cert: fs.readFileSync(path.join(CERT_DIR, 'cini.crt')),
